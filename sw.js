@@ -3,7 +3,7 @@
    Cache les ressources statiques, network-first pour l'API
    ============================================================ */
 
-const CACHE_NAME = 'carburant-v19';
+const CACHE_NAME = 'carburant-v20';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -86,8 +86,8 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // OSRM / Nominatim / ORS / TollGuru → network-only (pas de cache)
-  if (url.hostname.includes('osrm') || url.hostname.includes('nominatim') || url.hostname.includes('openrouteservice') || url.hostname.includes('tollguru')) {
+  // OSRM / Nominatim / ORS / TollGuru / CORS proxy → network-only (pas de cache)
+  if (url.hostname.includes('osrm') || url.hostname.includes('nominatim') || url.hostname.includes('openrouteservice') || url.hostname.includes('tollguru') || url.hostname.includes('corsproxy')) {
     event.respondWith(fetch(event.request));
     return;
   }

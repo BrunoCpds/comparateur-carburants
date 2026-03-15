@@ -1661,7 +1661,8 @@
         if (!tollKey || !routeCoords || routeCoords.length === 0) return null;
         try {
           const polyline = _encodePolyline(routeCoords);
-          const res = await fetch('https://apis.tollguru.com/toll/v2/complete-polyline-from-mapping-service', {
+          const TOLLGURU_URL = 'https://apis.tollguru.com/toll/v2/complete-polyline-from-mapping-service';
+          const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(TOLLGURU_URL), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-api-key': tollKey },
             body: JSON.stringify({ mapProvider: 'osrm', polyline, vehicle: { type: '2AxlesAuto' } }),
