@@ -955,7 +955,6 @@
               <span><i class="bi bi-slash-circle"></i> Éviter autoroutes</span>
             </label>
             <span id="btnOrsConfig" title="Configurer la clé API OpenRouteService" style="font-size:10px;padding:2px 8px;background:var(--primary-light);color:var(--primary);border-radius:10px;cursor:pointer;font-weight:600;white-space:nowrap"><i class="bi bi-gear"></i> API</span>
-            <span id="btnTollConfig" title="Configurer la clé API TollGuru (péages)" style="font-size:10px;padding:2px 8px;background:#fef3c7;color:#92400e;border-radius:10px;cursor:pointer;font-weight:600;white-space:nowrap"><i class="bi bi-coin"></i> Péages</span>
           </div>
         </div>
         <div class="route-progress d-none" id="routeProgress"></div>
@@ -1636,49 +1635,54 @@
       }
       function showLoading(show) { loadingOverlay.classList.toggle('d-none', !show); }
       function showError(msg) { stationList.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-triangle text-danger"></i><div>${_esc(msg)}</div></div>`; }
-      /* ---- Encodeur Google Polyline (pour TollGuru) ---- */
-      function _encodePolyline(coords) {
-        // coords = [[lng, lat], ...] → encoded polyline string
-        let encoded = '', pLat = 0, pLng = 0;
-        for (const [lng, lat] of coords) {
-          const iLat = Math.round(lat * 1e5), iLng = Math.round(lng * 1e5);
-          encoded += _encodeVal(iLat - pLat) + _encodeVal(iLng - pLng);
-          pLat = iLat; pLng = iLng;
-        }
-        return encoded;
-      }
-      function _encodeVal(v) {
-        v = v < 0 ? ~(v << 1) : v << 1;
-        let s = '';
-        while (v >= 0x20) { s += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; }
-        s += String.fromCharCode(v + 63);
-        return s;
-      }
-
-      /* ---- TollGuru : calcul des péages ---- */
+      /* ---- Péages : estimation via OSRM (steps avec ref autoroute) ---- */
       async function _fetchTollCost(routeCoords) {
-        const tollKey = localStorage.getItem('carburant_tollguru_key');
-        if (!tollKey || !routeCoords || routeCoords.length === 0) return null;
+        if (!routeCoords || routeCoords.length < 2) return null;
         try {
-          const polyline = _encodePolyline(routeCoords);
-          const TOLLGURU_URL = 'https://apis.tollguru.com/toll/v2/complete-polyline-from-mapping-service';
-          const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(TOLLGURU_URL), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': tollKey },
-            body: JSON.stringify({ mapProvider: 'osrm', polyline, vehicle: { type: '2AxlesAuto' } }),
-          });
-          if (!res.ok) { console.warn('TollGuru HTTP', res.status); return null; }
+          // Appeler OSRM avec steps=true pour obtenir les noms de routes
+          const start = routeCoords[0], end = routeCoords[routeCoords.length - 1];
+          const url = `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?overview=false&steps=true`;
+          const res = await fetch(url);
+          if (!res.ok) return null;
           const data = await res.json();
-          if (data.status !== 'OK' || !data.route) return null;
+          if (!data.routes || data.routes.length === 0) return null;
+
+          // Parcourir les steps et identifier les segments d'autoroute à péage
+          const steps = data.routes[0].legs[0].steps;
+          let tollKm = 0;
+          const tollSegments = [];
+          const TOLL_RATE = 0.09; // EUR/km moyen autoroute France
+
+          for (const step of steps) {
+            const ref = step.ref || '';
+            const name = step.name || '';
+            // Autoroutes françaises : A1-A99, commencent par "A" suivi de chiffres
+            const isAutoroute = /^A\d+/.test(ref);
+            if (isAutoroute) {
+              const km = (step.distance || 0) / 1000;
+              tollKm += km;
+              // Regrouper par autoroute
+              const existing = tollSegments.find(s => s.road === ref);
+              if (existing) { existing.km += km; }
+              else { tollSegments.push({ road: ref, name: name || ref, km }); }
+            }
+          }
+
+          if (tollKm < 5) return null; // moins de 5km d'autoroute = pas de péage significatif
+
+          const tollCost = Math.round(tollKm * TOLL_RATE * 100) / 100;
           return {
-            hasTolls: data.route.hasTolls,
-            tollCost: data.route.costs?.cash ?? data.route.costs?.tagAndCash ?? 0,
-            tagCost: data.route.costs?.tag ?? 0,
-            fuelCost: data.route.costs?.fuel ?? 0,
-            tolls: data.route.tolls || [],
-            currency: data.route.costs?.currency || 'EUR',
+            hasTolls: true,
+            tollCost,
+            isEstimate: true,
+            tollKm: Math.round(tollKm),
+            tolls: tollSegments.map(s => ({
+              name: s.road,
+              road: s.road,
+              tagCost: Math.round(s.km * TOLL_RATE * 100) / 100,
+            })),
           };
-        } catch (err) { console.warn('TollGuru error:', err); return null; }
+        } catch (err) { console.warn('Toll estimation error:', err); return null; }
       }
 
       /** Extraire un libelle court depuis un label Nominatim complet
@@ -1795,23 +1799,6 @@
         }
       });
 
-      /* ---- Config clé TollGuru (péages) ---- */
-      $('btnTollConfig')?.addEventListener('click', () => {
-        const current = localStorage.getItem('carburant_tollguru_key') || '';
-        const key = prompt(
-          'Calcul des péages via TollGuru (gratuit, 15 req/jour).\n' +
-          'Créez un compte sur https://tollguru.com/dashboard\n\n' +
-          'Collez votre clé API :', current);
-        if (key === null) return;
-        if (key.trim()) {
-          localStorage.setItem('carburant_tollguru_key', key.trim());
-          showToast('Clé API TollGuru enregistrée', 'success');
-        } else {
-          localStorage.removeItem('carburant_tollguru_key');
-          showToast('Clé API TollGuru supprimée', 'info');
-        }
-      });
-
       /* ---- Tri itineraire ---- */
       const routeSortBar = $('routeSortBar');
       document.querySelectorAll('[data-route-sort]').forEach(btn => {
@@ -1909,10 +1896,10 @@
           }
           renderRouteResults(stations);
           CarburantAPI.enrichStationNames(stations).then(() => renderRouteResults(stations));
-          // Calcul péages TollGuru (en parallèle, non bloquant)
+          // Calcul péages (estimation via OSRM, non bloquant)
           lastTollData = null;
           const routeCoords = RouteManager.getLastRouteCoords();
-          if (routeCoords && localStorage.getItem('carburant_tollguru_key')) {
+          if (routeCoords) {
             _fetchTollCost(routeCoords).then(toll => {
               lastTollData = toll;
               if (toll) _renderTollInfo(toll);
@@ -2298,16 +2285,17 @@
       /* Afficher les infos péages dans le bloc dédié */
       function _renderTollInfo(toll) {
         if (!toll || !toll.hasTolls) return;
-        // Mettre à jour le bloc détail péages
         const block = $('tollInfoBlock');
         if (block) {
+          const estLabel = toll.isEstimate ? ' <small style="color:#888">(estimation ~0,09 \u20ac/km)</small>' : '';
           let html = `<div style="margin-top:8px;padding:8px 12px;background:#fef3c7;border-radius:8px;font-size:12px">`;
-          html += `<div style="font-weight:700;margin-bottom:4px"><i class="bi bi-coin"></i> D\u00e9tail des p\u00e9ages</div>`;
+          html += `<div style="font-weight:700;margin-bottom:4px"><i class="bi bi-coin"></i> P\u00e9ages${toll.isEstimate && toll.tollKm ? ` \u2014 ${toll.tollKm} km d'autoroute` : ''}${estLabel}</div>`;
           toll.tolls.forEach(t => {
             const name = t.name || t.start?.name || 'P\u00e9age';
             const road = t.road || t.start?.road || '';
             const cost = t.tagCost ?? t.cashCost ?? 0;
-            html += `<div class="d-flex justify-content-between"><span>${_esc(name)}${road ? ` <small style="color:#888">(${_esc(road)})</small>` : ''}</span><strong>${cost.toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+            const kmInfo = t.km ? ` \u2014 ${Math.round(t.km)} km` : '';
+            html += `<div class="d-flex justify-content-between"><span>${_esc(name)}${kmInfo}</span><strong>${cost.toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
           });
           html += `<hr style="margin:4px 0;border-color:#e5c07b">`;
           html += `<div class="d-flex justify-content-between" style="font-weight:700"><span>Total p\u00e9ages</span><span style="color:#92400e">${toll.tollCost.toFixed(2).replace('.', ',')} \u20ac</span></div>`;
