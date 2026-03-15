@@ -409,18 +409,22 @@
     }
     .view-tab {
       flex: 1;
-      padding: 10px;
+      padding: 10px 8px;
       text-align: center;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 13px;
-      color: var(--muted);
+      color: var(--text);
       cursor: pointer;
-      border-bottom: 2px solid transparent;
+      border-bottom: 3px solid transparent;
       margin-bottom: -2px;
       transition: all 0.15s;
+      background: var(--sidebar);
+      border-radius: 8px 8px 0 0;
+      margin: 0 2px;
     }
-    .view-tab:hover { color: var(--primary); }
-    .view-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .view-tab i { font-size: 15px; }
+    .view-tab:hover { color: var(--primary); background: var(--primary-light); }
+    .view-tab.active { color: #fff; background: var(--primary); border-bottom-color: var(--primary); }
 
     .tab-content { display: none; }
     .tab-content.active { display: block; }
