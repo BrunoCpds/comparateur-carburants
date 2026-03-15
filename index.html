@@ -952,9 +952,10 @@
           <div class="mt-2 d-flex align-items-center gap-2">
             <label class="form-check mb-0" style="font-size:12px">
               <input type="checkbox" class="form-check-input" id="chkAvoidTolls">
-              <span><i class="bi bi-slash-circle"></i> Éviter les autoroutes</span>
+              <span><i class="bi bi-slash-circle"></i> Éviter autoroutes</span>
             </label>
             <span id="btnOrsConfig" title="Configurer la clé API OpenRouteService" style="font-size:10px;padding:2px 8px;background:var(--primary-light);color:var(--primary);border-radius:10px;cursor:pointer;font-weight:600;white-space:nowrap"><i class="bi bi-gear"></i> API</span>
+            <span id="btnTollConfig" title="Configurer la clé API TollGuru (péages)" style="font-size:10px;padding:2px 8px;background:#fef3c7;color:#92400e;border-radius:10px;cursor:pointer;font-weight:600;white-space:nowrap"><i class="bi bi-coin"></i> Péages</span>
           </div>
         </div>
         <div class="route-progress d-none" id="routeProgress"></div>
@@ -1052,6 +1053,7 @@
       let userPos = null;
       let filter24h = false;
       let lastRouteDistance = 0;
+      let lastTollData = null; // données péages TollGuru
 
       /* ---- DOM ---- */
       const $ = id => document.getElementById(id);
@@ -1634,6 +1636,50 @@
       }
       function showLoading(show) { loadingOverlay.classList.toggle('d-none', !show); }
       function showError(msg) { stationList.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-triangle text-danger"></i><div>${_esc(msg)}</div></div>`; }
+      /* ---- Encodeur Google Polyline (pour TollGuru) ---- */
+      function _encodePolyline(coords) {
+        // coords = [[lng, lat], ...] → encoded polyline string
+        let encoded = '', pLat = 0, pLng = 0;
+        for (const [lng, lat] of coords) {
+          const iLat = Math.round(lat * 1e5), iLng = Math.round(lng * 1e5);
+          encoded += _encodeVal(iLat - pLat) + _encodeVal(iLng - pLng);
+          pLat = iLat; pLng = iLng;
+        }
+        return encoded;
+      }
+      function _encodeVal(v) {
+        v = v < 0 ? ~(v << 1) : v << 1;
+        let s = '';
+        while (v >= 0x20) { s += String.fromCharCode((0x20 | (v & 0x1f)) + 63); v >>= 5; }
+        s += String.fromCharCode(v + 63);
+        return s;
+      }
+
+      /* ---- TollGuru : calcul des péages ---- */
+      async function _fetchTollCost(routeCoords) {
+        const tollKey = localStorage.getItem('carburant_tollguru_key');
+        if (!tollKey || !routeCoords || routeCoords.length === 0) return null;
+        try {
+          const polyline = _encodePolyline(routeCoords);
+          const res = await fetch('https://apis.tollguru.com/toll/v2/complete-polyline-from-mapping-service', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': tollKey },
+            body: JSON.stringify({ mapProvider: 'osrm', polyline, vehicle: { type: '2AxlesAuto' } }),
+          });
+          if (!res.ok) { console.warn('TollGuru HTTP', res.status); return null; }
+          const data = await res.json();
+          if (data.status !== 'OK' || !data.route) return null;
+          return {
+            hasTolls: data.route.hasTolls,
+            tollCost: data.route.costs?.cash ?? data.route.costs?.tagAndCash ?? 0,
+            tagCost: data.route.costs?.tag ?? 0,
+            fuelCost: data.route.costs?.fuel ?? 0,
+            tolls: data.route.tolls || [],
+            currency: data.route.costs?.currency || 'EUR',
+          };
+        } catch (err) { console.warn('TollGuru error:', err); return null; }
+      }
+
       /** Extraire un libelle court depuis un label Nominatim complet
        *  "63, Route de Paris, Nogent-le-Roi, ..., 28210, France" → "63 Route de Paris, Nogent-le-Roi"
        */
@@ -1748,6 +1794,23 @@
         }
       });
 
+      /* ---- Config clé TollGuru (péages) ---- */
+      $('btnTollConfig')?.addEventListener('click', () => {
+        const current = localStorage.getItem('carburant_tollguru_key') || '';
+        const key = prompt(
+          'Calcul des péages via TollGuru (gratuit, 15 req/jour).\n' +
+          'Créez un compte sur https://tollguru.com/dashboard\n\n' +
+          'Collez votre clé API :', current);
+        if (key === null) return;
+        if (key.trim()) {
+          localStorage.setItem('carburant_tollguru_key', key.trim());
+          showToast('Clé API TollGuru enregistrée', 'success');
+        } else {
+          localStorage.removeItem('carburant_tollguru_key');
+          showToast('Clé API TollGuru supprimée', 'info');
+        }
+      });
+
       /* ---- Tri itineraire ---- */
       const routeSortBar = $('routeSortBar');
       document.querySelectorAll('[data-route-sort]').forEach(btn => {
@@ -1845,6 +1908,15 @@
           }
           renderRouteResults(stations);
           CarburantAPI.enrichStationNames(stations).then(() => renderRouteResults(stations));
+          // Calcul péages TollGuru (en parallèle, non bloquant)
+          lastTollData = null;
+          const routeCoords = RouteManager.getLastRouteCoords();
+          if (routeCoords && localStorage.getItem('carburant_tollguru_key')) {
+            _fetchTollCost(routeCoords).then(toll => {
+              lastTollData = toll;
+              if (toll) _renderTollInfo(toll);
+            });
+          }
           showToast(`${stations.filter(s => s.fuels[currentFuel]).length} stations sur le trajet`, 'success');
           _updateUrl({ from: routeFrom.value, to: routeTo.value, fuel: currentFuel });
         } catch (err) { routeProgress.classList.add('d-none'); routeStationList.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-triangle text-danger"></i><div>${_esc(err.message)}</div></div>`; showToast(err.message, 'error'); }
@@ -1867,6 +1939,7 @@
         routeSortBar.classList.add('d-none');
         lastRouteStations = [];
         lastRouteDistance = 0;
+        lastTollData = null;
         routeStationList.innerHTML = `<div class="empty-state"><i class="bi bi-sign-turn-right"></i><div><strong>Planifiez votre trajet</strong></div><div style="margin-top:6px;font-size:13px">Entrez d\u00e9part et arriv\u00e9e pour trouver les stations les moins ch\u00e8res</div></div>`;
       });
 
@@ -1907,7 +1980,10 @@
 
         const conso = parseFloat(localStorage.getItem('carburant_conso') || '7');
         const litres = (totalKm * conso / 100).toFixed(1);
-        const coutMin = (totalKm * conso / 100 * minP).toFixed(2).replace('.', ',');
+        const coutCarburant = (totalKm * conso / 100 * minP);
+        const coutMin = coutCarburant.toFixed(2).replace('.', ',');
+        const tollCost = lastTollData?.hasTolls ? lastTollData.tollCost : 0;
+        const coutTotal = (coutCarburant + tollCost).toFixed(2).replace('.', ',');
 
         const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Roadbook ${fromLabel} \u2192 ${toLabel}</title>
 <style>
@@ -1935,7 +2011,9 @@
 <div class="cost-box">
   <span>Conso : <strong>${conso} L/100km</strong></span>
   <span>Litres estim\u00e9s : <strong>${litres} L</strong></span>
-  <span>Co\u00fbt min : <strong style="color:#16a34a">${coutMin} \u20ac</strong></span>
+  <span>Carburant : <strong style="color:#16a34a">${coutMin} \u20ac</strong></span>
+  ${tollCost > 0 ? `<span>P\u00e9ages : <strong style="color:#92400e">${tollCost.toFixed(2).replace('.', ',')} \u20ac</strong></span>` : ''}
+  ${tollCost > 0 ? `<span style="font-weight:700">Total : <strong style="color:#2f64ff">${coutTotal} \u20ac</strong></span>` : ''}
 </div>
 <div class="map-container" id="mapCapture"></div>
 <table>
@@ -2179,7 +2257,9 @@
       }
 
       /* [8] Calculateur cout trajet */
+      let _lastMinPrice = 0, _lastAvgPrice = 0;
       function _renderRouteCostCalc(minPrice, avgPrice) {
+        _lastMinPrice = minPrice; _lastAvgPrice = avgPrice;
         if (!routeCostCalc || lastRouteDistance <= 0) return;
         routeCostCalc.classList.remove('d-none');
         const savedConso = localStorage.getItem('carburant_conso') || '7';
@@ -2190,16 +2270,62 @@
             <input type="number" class="form-control form-control-sm" id="routeConso" value="${savedConso}" min="3" max="25" step="0.5" style="max-width:70px">
             <span style="font-size:12px">L/100km</span>
           </div>
-          <div id="routeCostResult" style="font-size:13px"></div>`;
+          <div id="routeCostResult" style="font-size:13px"></div>
+          <div id="tollInfoBlock"></div>`;
         const update = () => {
           const conso = parseFloat($('routeConso')?.value) || 7;
           localStorage.setItem('carburant_conso', String(conso));
           const litres = (lastRouteDistance * conso) / 100;
           const r = $('routeCostResult');
-          if (r) r.innerHTML = `<div class="d-flex justify-content-between"><span>Litres</span><strong>${litres.toFixed(1)} L</strong></div><div class="d-flex justify-content-between"><span>Au meilleur prix</span><strong class="price-low">${(litres * minPrice).toFixed(2).replace('.', ',')} \u20ac</strong></div><div class="d-flex justify-content-between"><span>Au prix moyen</span><strong>${(litres * avgPrice).toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+          if (!r) return;
+          let html = `<div class="d-flex justify-content-between"><span>Litres</span><strong>${litres.toFixed(1)} L</strong></div>`;
+          html += `<div class="d-flex justify-content-between"><span>Au meilleur prix</span><strong class="price-low">${(litres * minPrice).toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+          html += `<div class="d-flex justify-content-between"><span>Au prix moyen</span><strong>${(litres * avgPrice).toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+          if (lastTollData && lastTollData.hasTolls) {
+            html += `<hr style="margin:6px 0;border-color:var(--line)">`;
+            html += `<div class="d-flex justify-content-between"><span><i class="bi bi-coin"></i> P\u00e9ages</span><strong style="color:#92400e">${lastTollData.tollCost.toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+            html += `<div class="d-flex justify-content-between" style="font-weight:700;margin-top:4px;padding-top:4px;border-top:2px solid var(--primary)"><span>Co\u00fbt total (meilleur prix)</span><strong style="color:var(--primary)">${((litres * minPrice) + lastTollData.tollCost).toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+          }
+          r.innerHTML = html;
         };
         update();
         $('routeConso')?.addEventListener('input', update);
+        // Afficher les péages si déjà disponibles
+        if (lastTollData) _renderTollInfo(lastTollData);
+      }
+
+      /* Afficher les infos péages dans le bloc dédié */
+      function _renderTollInfo(toll) {
+        if (!toll || !toll.hasTolls) return;
+        // Mettre à jour le bloc détail péages
+        const block = $('tollInfoBlock');
+        if (block) {
+          let html = `<div style="margin-top:8px;padding:8px 12px;background:#fef3c7;border-radius:8px;font-size:12px">`;
+          html += `<div style="font-weight:700;margin-bottom:4px"><i class="bi bi-coin"></i> D\u00e9tail des p\u00e9ages</div>`;
+          toll.tolls.forEach(t => {
+            const name = t.name || t.start?.name || 'P\u00e9age';
+            const road = t.road || t.start?.road || '';
+            const cost = t.tagCost ?? t.cashCost ?? 0;
+            html += `<div class="d-flex justify-content-between"><span>${_esc(name)}${road ? ` <small style="color:#888">(${_esc(road)})</small>` : ''}</span><strong>${cost.toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+          });
+          html += `<hr style="margin:4px 0;border-color:#e5c07b">`;
+          html += `<div class="d-flex justify-content-between" style="font-weight:700"><span>Total p\u00e9ages</span><span style="color:#92400e">${toll.tollCost.toFixed(2).replace('.', ',')} \u20ac</span></div>`;
+          html += `</div>`;
+          block.innerHTML = html;
+        }
+        // Mettre à jour les totaux dans le calculateur (sans re-render complet)
+        const conso = parseFloat($('routeConso')?.value) || 7;
+        const litres = (lastRouteDistance * conso) / 100;
+        const r = $('routeCostResult');
+        if (r && _lastMinPrice > 0) {
+          let html = `<div class="d-flex justify-content-between"><span>Litres</span><strong>${litres.toFixed(1)} L</strong></div>`;
+          html += `<div class="d-flex justify-content-between"><span>Au meilleur prix</span><strong class="price-low">${(litres * _lastMinPrice).toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+          html += `<div class="d-flex justify-content-between"><span>Au prix moyen</span><strong>${(litres * _lastAvgPrice).toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+          html += `<hr style="margin:6px 0;border-color:var(--line)">`;
+          html += `<div class="d-flex justify-content-between"><span><i class="bi bi-coin"></i> P\u00e9ages</span><strong style="color:#92400e">${toll.tollCost.toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+          html += `<div class="d-flex justify-content-between" style="font-weight:700;margin-top:4px;padding-top:4px;border-top:2px solid var(--primary)"><span>Co\u00fbt total (meilleur prix)</span><strong style="color:var(--primary)">${((litres * _lastMinPrice) + toll.tollCost).toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+          r.innerHTML = html;
+        }
       }
 
       /* Mobile : toggle carte/liste */

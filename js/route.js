@@ -20,6 +20,7 @@ const RouteManager = (() => {
   let _onStationsFound = null;
   let _onRouteInfo = null;
   let _lastRouteInfo = null;
+  let _lastRouteCoords = null; // [lng, lat] coords for polyline encoding
 
   /* ---- Géocodage via Nominatim ---- */
   async function geocode(query) {
@@ -79,6 +80,7 @@ const RouteManager = (() => {
     }
 
     const { routeCoords, distanceKm, durationMin } = routeResult;
+    _lastRouteCoords = routeCoords; // stocker pour TollGuru
 
     // Dessiner l'itinéraire sur la carte
     const latLngs = routeCoords.map(c => [c[1], c[0]]);
@@ -316,6 +318,7 @@ const RouteManager = (() => {
   }
 
   function getLastRouteInfo() { return _lastRouteInfo; }
+  function getLastRouteCoords() { return _lastRouteCoords; }
 
-  return { init, geocode, calculateRoute, clearRoute, getLastRouteInfo };
+  return { init, geocode, calculateRoute, clearRoute, getLastRouteInfo, getLastRouteCoords };
 })();
