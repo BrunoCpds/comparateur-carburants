@@ -1682,7 +1682,7 @@
         const info = $('resultsInfo');
         if (!info || info.querySelector('#btnExport')) return;
         const btnPdf = document.createElement('button');
-        btnPdf.id = 'btnExport'; btnPdf.className = 'btn btn-sm btn-outline-secondary'; btnPdf.title = 'Exporter PDF'; btnPdf.innerHTML = '<i class="bi bi-filetype-pdf"></i>';
+        btnPdf.id = 'btnExport'; btnPdf.className = 'btn btn-sm'; btnPdf.title = 'Exporter PDF'; btnPdf.style.cssText = 'background:#dc2626;color:#fff;font-weight:700;font-size:11px;padding:2px 8px;border:none;border-radius:4px'; btnPdf.innerHTML = '<i class="bi bi-file-earmark-arrow-down"></i> PDF';
         btnPdf.addEventListener('click', () => {
           const stations = Utils.sortStations(Utils.filterByFuel(currentStations, currentFuel), currentFuel, currentSort);
           if (stations.length === 0) { showToast('Rien \u00e0 exporter', 'warning'); return; }
@@ -1692,7 +1692,7 @@
           showToast('Export PDF ouvert', 'success');
         });
         const btnJpg = document.createElement('button');
-        btnJpg.className = 'btn btn-sm btn-outline-secondary ms-1'; btnJpg.title = 'Exporter JPEG'; btnJpg.innerHTML = '<i class="bi bi-filetype-jpg"></i>';
+        btnJpg.className = 'btn btn-sm ms-1'; btnJpg.title = 'Exporter JPEG'; btnJpg.style.cssText = 'background:#2563eb;color:#fff;font-weight:700;font-size:11px;padding:2px 8px;border:none;border-radius:4px'; btnJpg.innerHTML = '<i class="bi bi-image"></i> JPG';
         btnJpg.addEventListener('click', () => {
           const stations = Utils.sortStations(Utils.filterByFuel(currentStations, currentFuel), currentFuel, currentSort);
           if (stations.length === 0) { showToast('Rien \u00e0 exporter', 'warning'); return; }
@@ -1981,7 +1981,7 @@
         routeSortBar.classList.remove('d-none');
         routeSortBar.style.display = 'flex';
         routeInfoBar.classList.remove('d-none');
-        routeInfoBar.innerHTML = `<span><i class="bi bi-fuel-pump"></i> <strong>${sorted.length}</strong> stations</span><span><i class="bi bi-arrow-down"></i> Min : <strong class="price-low">${minP.toFixed(3).replace('.', ',')} \u20ac</strong></span><span><i class="bi bi-dash"></i> Moy : <strong>${avgP.toFixed(3).replace('.', ',')} \u20ac</strong></span><span><i class="bi bi-arrow-up"></i> Max : <strong class="price-high">${maxP.toFixed(3).replace('.', ',')} \u20ac</strong></span><span style="margin-left:auto;display:flex;gap:4px"><button class="btn btn-sm btn-outline-primary" id="btnRoadbookPdf" title="Roadbook PDF"><i class="bi bi-filetype-pdf"></i></button><button class="btn btn-sm btn-outline-primary" id="btnRoadbookJpg" title="Roadbook JPEG"><i class="bi bi-filetype-jpg"></i></button></span>`;
+        routeInfoBar.innerHTML = `<span><i class="bi bi-fuel-pump"></i> <strong>${sorted.length}</strong> stations</span><span><i class="bi bi-arrow-down"></i> Min : <strong class="price-low">${minP.toFixed(3).replace('.', ',')} \u20ac</strong></span><span><i class="bi bi-dash"></i> Moy : <strong>${avgP.toFixed(3).replace('.', ',')} \u20ac</strong></span><span><i class="bi bi-arrow-up"></i> Max : <strong class="price-high">${maxP.toFixed(3).replace('.', ',')} \u20ac</strong></span><span style="margin-left:auto;display:flex;gap:4px"><button class="btn btn-sm" id="btnRoadbookPdf" title="Roadbook PDF" style="background:#dc2626;color:#fff;font-weight:700;font-size:11px;padding:2px 8px;border:none;border-radius:4px"><i class="bi bi-file-earmark-arrow-down"></i> PDF</button><button class="btn btn-sm" id="btnRoadbookJpg" title="Roadbook JPEG" style="background:#2563eb;color:#fff;font-weight:700;font-size:11px;padding:2px 8px;border:none;border-radius:4px"><i class="bi bi-image"></i> JPG</button></span>`;
         $('btnRoadbookPdf')?.addEventListener('click', () => _exportRoadbook('pdf', sorted));
         $('btnRoadbookJpg')?.addEventListener('click', () => _exportRoadbook('jpeg', sorted));
 
