@@ -929,9 +929,10 @@
         <div class="route-form">
           <div class="route-input-group">
             <div class="route-connector"></div>
-            <div class="route-input-wrap" style="position:relative">
+            <div class="route-input-wrap" style="position:relative;display:flex;align-items:center;gap:4px">
               <div class="route-dot route-dot-start"></div>
-              <input type="text" class="form-control form-control-sm" id="routeFrom" placeholder="Ville de départ..." autocomplete="off">
+              <input type="text" class="form-control form-control-sm" id="routeFrom" placeholder="Ville de départ..." autocomplete="off" style="flex:1">
+              <button class="btn btn-sm btn-outline-primary" id="btnRouteGeo" title="Ma position" style="padding:2px 6px;flex-shrink:0"><i class="bi bi-crosshair"></i></button>
               <div class="autocomplete-list d-none" id="acFrom"></div>
             </div>
             <div class="route-input-wrap" style="position:relative">
@@ -1792,6 +1793,36 @@
 
       setupAutocomplete(routeFrom, acFrom, r => { selectedFrom = r; });
       setupAutocomplete(routeTo, acTo, r => { selectedTo = r; });
+
+      /* Bouton geolocalisation depart */
+      $('btnRouteGeo')?.addEventListener('click', async () => {
+        const btn = $('btnRouteGeo');
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:12px;height:12px"></span>';
+        try {
+          const pos = await Utils.getUserPosition();
+          selectedFrom = { lat: pos.lat, lon: pos.lon, label: 'Ma position' };
+          // Reverse geocoding
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.lat}&lon=${pos.lon}&format=json&zoom=16&addressdetails=1`, { headers: { 'Accept-Language': 'fr' } });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.address) {
+              const a = data.address;
+              const parts = [a.road, a.postcode, a.city || a.town || a.village || a.municipality || ''].filter(Boolean);
+              const label = parts.join(', ');
+              routeFrom.value = label;
+              selectedFrom.label = label;
+            } else {
+              routeFrom.value = 'Ma position';
+            }
+          } else {
+            routeFrom.value = 'Ma position';
+          }
+          showToast('Position d\u00e9tect\u00e9e', 'success');
+        } catch (err) {
+          showToast('G\u00e9olocalisation impossible', 'error');
+        }
+        btn.disabled = false; btn.innerHTML = '<i class="bi bi-crosshair"></i>';
+      });
 
       btnCalcRoute.addEventListener('click', async () => {
         const fromText = routeFrom.value.trim(), toText = routeTo.value.trim();
