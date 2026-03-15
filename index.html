@@ -1920,37 +1920,66 @@
         }
       }
 
-      function _captureMapAndExportPdf(htmlContent) {
-        const mapEl = document.querySelector('.map-panel');
-        if (mapEl && typeof html2canvas !== 'undefined') {
+      /* Capturer la carte avec padding pour que le trace soit entierement visible */
+      function _captureMap() {
+        return new Promise((resolve, reject) => {
+          const map = CarburantMap.getMap();
+          const mapEl = document.querySelector('.map-panel');
+          if (!map || !mapEl || typeof html2canvas === 'undefined') { reject(); return; }
+
+          // Sauvegarder la vue actuelle
+          const savedCenter = map.getCenter();
+          const savedZoom = map.getZoom();
+
+          // Reculer d'un niveau de zoom pour avoir plus de marge
+          map.setZoom(savedZoom - 1, { animate: false });
+          map.invalidateSize();
+
           showToast('Capture de la carte...', 'info');
-          html2canvas(mapEl, { scale: 1.5, useCORS: true, allowTaint: true, backgroundColor: '#fff' }).then(canvas => {
-            const mapImg = canvas.toDataURL('image/jpeg', 0.85);
-            const finalHtml = htmlContent.replace('<div class="map-container" id="mapCapture"></div>', `<div class="map-container"><img src="${mapImg}" alt="Carte itin\u00e9raire"></div>`);
-            window.open(URL.createObjectURL(new Blob([finalHtml + '<script>window.print()<\\/script>'], { type: 'text/html' })), '_blank');
-            showToast('Roadbook PDF ouvert', 'success');
-          }).catch(() => {
-            window.open(URL.createObjectURL(new Blob([htmlContent + '<script>window.print()<\\/script>'], { type: 'text/html' })), '_blank');
-          });
-        } else {
+
+          // Attendre le chargement des tuiles puis capturer
+          const onReady = () => {
+            setTimeout(() => {
+              html2canvas(mapEl, { scale: 1.5, useCORS: true, allowTaint: true, backgroundColor: '#fff' }).then(canvas => {
+                // Restaurer la vue
+                map.setView(savedCenter, savedZoom, { animate: false });
+                resolve(canvas.toDataURL('image/jpeg', 0.85));
+              }).catch(() => {
+                map.setView(savedCenter, savedZoom, { animate: false });
+                reject();
+              });
+            }, 600);
+          };
+
+          // Verifier si les tuiles sont chargees
+          let pending = 0;
+          map.eachLayer(l => { if (l._loading) pending++; });
+          if (pending > 0) {
+            map.once('load', onReady);
+            setTimeout(onReady, 3000); // timeout securite
+          } else {
+            onReady();
+          }
+        });
+      }
+
+      function _captureMapAndExportPdf(htmlContent) {
+        _captureMap().then(mapImg => {
+          const finalHtml = htmlContent.replace('<div class="map-container" id="mapCapture"></div>', `<div class="map-container"><img src="${mapImg}" alt="Carte itin\u00e9raire"></div>`);
+          window.open(URL.createObjectURL(new Blob([finalHtml + '<script>window.print()<\\/script>'], { type: 'text/html' })), '_blank');
+          showToast('Roadbook PDF ouvert', 'success');
+        }).catch(() => {
           window.open(URL.createObjectURL(new Blob([htmlContent + '<script>window.print()<\\/script>'], { type: 'text/html' })), '_blank');
-        }
+        });
       }
 
       function _captureMapAndExportJpeg(htmlContent, filename) {
-        const mapEl = document.querySelector('.map-panel');
         const doExport = (finalHtml) => {
-          // Creer un div hors-ecran dans le document principal (pas un iframe)
           const container = document.createElement('div');
           container.style.cssText = 'position:fixed;left:-9999px;top:0;width:960px;background:#fff;z-index:-1;padding:20px';
           container.innerHTML = finalHtml.replace(/<!DOCTYPE[^>]*>|<\/?html[^>]*>|<\/?head[^>]*>|<meta[^>]*>|<title[^>]*>[^<]*<\/title>|<\/?body[^>]*>/gi, '');
-          // Injecter les styles inline
           const styleMatch = finalHtml.match(/<style>([\s\S]*?)<\/style>/);
-          if (styleMatch) {
-            const styleEl = document.createElement('style');
-            styleEl.textContent = styleMatch[1];
-            container.prepend(styleEl);
-          }
+          if (styleMatch) { const s = document.createElement('style'); s.textContent = styleMatch[1]; container.prepend(s); }
           document.body.appendChild(container);
           setTimeout(() => {
             html2canvas(container, { scale: 2, backgroundColor: '#fff', width: 960 }).then(canvas => {
@@ -1964,16 +1993,10 @@
           }, 300);
         };
 
-        if (mapEl && typeof html2canvas !== 'undefined') {
-          showToast('Capture de la carte...', 'info');
-          html2canvas(mapEl, { scale: 1.5, useCORS: true, allowTaint: true, backgroundColor: '#fff' }).then(canvas => {
-            const mapImg = canvas.toDataURL('image/jpeg', 0.85);
-            const finalHtml = htmlContent.replace('<div class="map-container" id="mapCapture"></div>', `<div class="map-container"><img src="${mapImg}" alt="Carte"></div>`);
-            doExport(finalHtml);
-          }).catch(() => doExport(htmlContent));
-        } else {
-          doExport(htmlContent);
-        }
+        _captureMap().then(mapImg => {
+          const finalHtml = htmlContent.replace('<div class="map-container" id="mapCapture"></div>', `<div class="map-container"><img src="${mapImg}" alt="Carte"></div>`);
+          doExport(finalHtml);
+        }).catch(() => doExport(htmlContent));
       }
 
       function renderRouteResults(stations) {
