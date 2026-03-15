@@ -3,7 +3,7 @@
    Cache les ressources statiques, network-first pour l'API
    ============================================================ */
 
-const CACHE_NAME = 'carburant-v4';
+const CACHE_NAME = 'carburant-v5';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -27,6 +27,7 @@ const CDN_ASSETS = [
   'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css',
   'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css',
   'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
 ];
 
 /* ---- Installation : mise en cache des ressources statiques ---- */
@@ -84,8 +85,8 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // OSRM / Nominatim → network-only (pas de cache)
-  if (url.hostname.includes('osrm') || url.hostname.includes('nominatim')) {
+  // OSRM / Nominatim / ORS → network-only (pas de cache)
+  if (url.hostname.includes('osrm') || url.hostname.includes('nominatim') || url.hostname.includes('openrouteservice')) {
     event.respondWith(fetch(event.request));
     return;
   }
