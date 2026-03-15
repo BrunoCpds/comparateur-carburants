@@ -1654,11 +1654,12 @@
           const TOLL_RATE = 0.09; // EUR/km moyen autoroute France
 
           for (const step of steps) {
-            const ref = step.ref || '';
+            const ref = (step.ref || '').replace(/\s+/g, ''); // "A 10" → "A10"
             const name = step.name || '';
-            // Autoroutes françaises : A1-A99, commencent par "A" suivi de chiffres
+            // Autoroutes françaises à péage (exclure A75 gratuite sauf Millau)
             const isAutoroute = /^A\d+/.test(ref);
-            if (isAutoroute) {
+            const FREE_AUTOROUTES = ['A75', 'A84', 'A20', 'A63']; // autoroutes gratuites connues
+            if (isAutoroute && !FREE_AUTOROUTES.includes(ref)) {
               const km = (step.distance || 0) / 1000;
               tollKm += km;
               // Regrouper par autoroute
