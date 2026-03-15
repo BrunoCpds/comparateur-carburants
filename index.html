@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comparateur Prix Carburants</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='32' fill='%232f64ff'/><text x='90' y='130' text-anchor='middle' font-size='110'>%E2%9B%BD</text></svg>">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2f64ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <style>
+    /* ================================================
+       Design System v3 — Tokens
+       ================================================ */
+    :root {
+      --bg: #f3f5f9;
+      --sidebar: #f8fafc;
+      --panel: #ffffff;
+      --line: #dfe5ee;
+      --text: #111827;
+      --muted: #667085;
+      --primary: #2f64ff;
+      --primary-dark: #1f4ed6;
+      --primary-light: #e8edff;
+      --success-bg: #d8f3e3;
+      --success-text: #16794c;
+      --warn-bg: #ffe6d3;
+      --warn-text: #a85410;
+      --danger-bg: #ffe1e1;
+      --danger-text: #b42318;
+      --radius: 16px;
+      --shadow: 0 18px 40px rgba(15, 23, 42, 0.07);
+      --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
+
+      --bs-body-bg: var(--bg);
+      --bs-body-color: var(--text);
+      --bs-body-font-family: "Manrope", "Segoe UI", sans-serif;
+      --bs-font-sans-serif: "Manrope", "Segoe UI", sans-serif;
+      --bs-body-font-size: 14px;
+      --bs-border-color: var(--line);
+      --bs-border-radius: 10px;
+      --bs-card-bg: var(--panel);
+      --bs-card-border-color: var(--line);
+      --bs-primary: var(--primary);
+      --bs-primary-rgb: 47, 100, 255;
+    }
+
+    /* ================================================
+       Dark mode
+       ================================================ */
+    [data-theme="dark"] {
+      --bg: #0f1117;
+      --sidebar: #161922;
+      --panel: #1c1f2e;
+      --line: #2d3148;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --primary: #5b8aff;
+      --primary-dark: #7ba3ff;
+      --primary-light: #1e2a4a;
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    [data-theme="dark"] .card { background: var(--panel); border-color: var(--line); }
+    [data-theme="dark"] .form-control,
+    [data-theme="dark"] .form-select {
+      background: var(--sidebar); color: var(--text); border-color: var(--line);
+    }
+    [data-theme="dark"] .list-group-item { background: var(--panel); border-color: var(--line); color: var(--text); }
+    [data-theme="dark"] .table { color: var(--text); }
+    [data-theme="dark"] .table > :not(caption) > * > * { background: var(--panel); border-color: var(--line); color: var(--text); }
+    [data-theme="dark"] .offcanvas { background: var(--panel); color: var(--text); }
+    [data-theme="dark"] .btn-outline-secondary { color: var(--muted); border-color: var(--line); }
+    [data-theme="dark"] .btn-outline-secondary:hover { background: var(--line); color: var(--text); }
+    [data-theme="dark"] .stat-card { background: var(--sidebar); }
+    [data-theme="dark"] .leaflet-container { background: #1a1d2e; }
+
+    /* ================================================
+       Layout
+       ================================================ */
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Manrope", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    .app-header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 1050;
+      box-shadow: var(--shadow-sm);
+    }
+    .app-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 18px;
+      color: var(--primary);
+    }
+    .app-logo i { font-size: 24px; }
+
+    .app-main {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      height: calc(100vh - 57px);
+    }
+
+    @media (max-width: 991px) {
+      .app-main {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .map-panel { height: 50vh; min-height: 300px; }
+      .list-panel { height: auto; max-height: 60vh; }
+    }
+
+    /* ================================================
+       Panneau gauche (recherche + liste)
+       ================================================ */
+    .list-panel {
+      overflow-y: auto;
+      background: var(--bg);
+      border-right: 1px solid var(--line);
+    }
+    .search-section {
+      padding: 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .search-row {
+      display: flex;
+      gap: 8px;
+    }
+    .search-row .form-control { flex: 1; }
+
+    .fuel-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .fuel-chip {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .fuel-chip:hover { border-color: var(--primary); color: var(--primary); }
+    .fuel-chip.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .results-info {
+      padding: 8px 16px;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    /* ================================================
+       Station list items
+       ================================================ */
+    .station-list { padding: 0; }
+
+    .station-item {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      transition: background 0.15s;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: start;
+    }
+    .station-item:hover { background: var(--primary-light); }
+    .station-item.active { background: var(--primary-light); border-left: 3px solid var(--primary); }
+
+    .station-address {
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 1.3;
+    }
+    .station-city {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .station-meta {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+    .station-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    .station-price-big {
+      font-size: 20px;
+      font-weight: 800;
+      text-align: right;
+      line-height: 1.1;
+    }
+    .station-price-sub {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .price-low { color: #16a34a; }
+    .price-mid { color: #f59e0b; }
+    .price-high { color: #dc2626; }
+
+    /* Badges fraicheur du releve */
+    .freshness-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 10px; font-weight: 600; padding: 1px 7px;
+      border-radius: 10px; white-space: nowrap; line-height: 1.5;
+    }
+    .freshness-badge i { font-size: 8px; }
+    .freshness-fresh  { background: #d1fae5; color: #059669; }
+    .freshness-recent { background: #dbeafe; color: #2563eb; }
+    .freshness-aging  { background: #fef3c7; color: #d97706; }
+    .freshness-old    { background: #ffe4cc; color: #c2410c; }
+    .freshness-stale  { background: #fee2e2; color: #dc2626; }
+
+    /* ================================================
+       Panneau carte
+       ================================================ */
+    .map-panel { position: relative; }
+    #map { width: 100%; height: 100%; }
+
+    /* Marqueurs carte */
+    .station-marker { background: none; border: none; }
+    .station-marker-pin {
+      padding: 4px 8px;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
+      font-family: "Manrope", sans-serif;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      white-space: nowrap;
+    }
+    .user-marker-dot {
+      width: 16px;
+      height: 16px;
+      background: var(--primary);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      box-shadow: 0 0 0 4px rgba(47,100,255,0.3);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(47,100,255,0.3); }
+      50% { box-shadow: 0 0 0 10px rgba(47,100,255,0.1); }
+    }
+
+    /* Popup Leaflet */
+    .station-popup .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      font-family: "Manrope", sans-serif;
+    }
+    .popup-station { font-size: 13px; }
+    .popup-header { margin-bottom: 8px; }
+    .popup-city { color: var(--muted); font-size: 12px; }
+    .popup-distance { color: var(--primary); font-size: 12px; margin-top: 4px; }
+    .popup-fuels { display: flex; flex-direction: column; gap: 4px; }
+    .popup-fuel { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+    .popup-fuel-name { font-weight: 600; min-width: 50px; }
+    .popup-fuel-price { font-weight: 700; }
+    .popup-fuel-date { font-size: 11px; color: var(--muted); }
+    .popup-24h { margin-top: 6px; font-size: 12px; color: var(--success-text); font-weight: 600; }
+
+    /* ================================================
+       Panneau détail station (offcanvas)
+       ================================================ */
+    .detail-fuel-table td { vertical-align: middle; }
+    .detail-fuel-label { font-weight: 700; }
+    .detail-services { display: flex; flex-wrap: wrap; gap: 6px; }
+    .detail-service-badge {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    /* ================================================
+       Stat cards
+       ================================================ */
+    .stat-card {
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow-sm);
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ================================================
+       Vue favoris
+       ================================================ */
+    .fav-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+    .fav-empty i { font-size: 48px; display: block; margin-bottom: 12px; }
+
+    /* ================================================
+       Loading / empty states
+       ================================================ */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    [data-theme="dark"] .loading-overlay { background: rgba(15,17,23,0.8); }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .empty-state i { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+    /* ================================================
+       Economy calculator (dans le panneau stats)
+       ================================================ */
+    .eco-calc {
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      margin-top: 12px;
+    }
+
+    /* ================================================
+       Tabs
+       ================================================ */
+    .view-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--line);
+      background: var(--panel);
+    }
+    .view-tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--primary); }
+    .view-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ================================================
+       Scrollbar
+       ================================================ */
+    .list-panel::-webkit-scrollbar { width: 6px; }
+    .list-panel::-webkit-scrollbar-track { background: transparent; }
+    .list-panel::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+    /* ================================================
+       Responsive utilitaires
+       ================================================ */
+    .d-mobile-only { display: none; }
+    @media (max-width: 991px) {
+      .d-mobile-only { display: block; }
+    }
+
+    /* ================================================
+       Itinéraire
+       ================================================ */
+    .route-form { padding: 16px; }
+    .route-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+    }
+    .route-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .route-input-wrap .route-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .route-dot-start { background: #16a34a; }
+    .route-dot-end { background: #dc2626; }
+    .route-input-wrap .form-control { flex: 1; }
+    .route-connector {
+      position: absolute;
+      left: 5px;
+      top: 18px;
+      bottom: 18px;
+      width: 2px;
+      background: var(--line);
+    }
+    .route-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .route-info-bar {
+      display: flex;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--primary-light);
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .route-info-bar i { color: var(--primary); }
+    .route-progress {
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .route-station-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 50px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      transition: background 0.15s;
+    }
+    .route-station-item:hover { background: var(--primary-light); }
+    .route-km {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--primary);
+      text-align: center;
+    }
+    .route-km small { font-weight: 400; color: var(--muted); display: block; }
+
+    /* Autocomplete */
+    .autocomplete-list {
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      z-index: 200;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .autocomplete-item {
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--line);
+    }
+    .autocomplete-item:hover { background: var(--primary-light); }
+    .autocomplete-item:last-child { border-bottom: none; }
+
+    /* Route markers */
+    .route-marker { background: none; border: none; }
+    .route-marker-pin {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .route-start { background: #16a34a; }
+    .route-end { background: #dc2626; }
+
+    /* ================================================
+       Toast notifications
+       ================================================ */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast-item {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 18px;
+      box-shadow: var(--shadow);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastIn 0.3s ease-out;
+      pointer-events: auto;
+      max-width: 360px;
+    }
+    .toast-item.toast-out { animation: toastOut 0.25s ease-in forwards; }
+    .toast-item.toast-success { border-left: 4px solid #16a34a; }
+    .toast-item.toast-info { border-left: 4px solid var(--primary); }
+    .toast-item.toast-warning { border-left: 4px solid #f59e0b; }
+    .toast-item.toast-error { border-left: 4px solid #dc2626; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(10px); } }
+
+    /* ================================================
+       Best price badge
+       ================================================ */
+    .best-price-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: linear-gradient(135deg, #16a34a, #059669);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ================================================
+       Search history dropdown
+       ================================================ */
+    .search-history {
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      z-index: 200;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    .search-history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+    }
+    .search-history-item {
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .search-history-item:hover { background: var(--primary-light); }
+    .search-history-item:last-child { border-bottom: none; }
+    .search-history-item i { color: var(--muted); font-size: 12px; }
+
+    /* ================================================
+       Cache indicator
+       ================================================ */
+    .cache-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .cache-indicator.from-cache { background: #fef3c7; color: #d97706; }
+    .cache-indicator.from-live { background: var(--success-bg); color: var(--success-text); }
+    .cache-indicator .cache-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .cache-indicator.from-cache .cache-dot { background: #f59e0b; }
+    .cache-indicator.from-live .cache-dot { background: #16a34a; }
+
+    /* ================================================
+       Route cost calculator
+       ================================================ */
+    .route-cost-calc {
+      padding: 12px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+    .route-cost-calc .cost-result {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    /* ================================================
+       Multi-fuel comparison panel
+       ================================================ */
+    .multifuel-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 8px;
+      padding: 12px;
+    }
+    .multifuel-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+    .multifuel-card .fuel-name { font-size: 12px; font-weight: 700; }
+    .multifuel-card .fuel-price { font-size: 18px; font-weight: 800; margin: 4px 0; }
+    .multifuel-card .fuel-date { font-size: 10px; color: var(--muted); }
+
+    /* ================================================
+       Price history sparkline
+       ================================================ */
+    .price-history-chart {
+      width: 100%;
+      height: 60px;
+    }
+
+    /* ================================================
+       Keyboard nav in autocomplete
+       ================================================ */
+    .autocomplete-item.ac-active {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    /* ================================================
+       Mobile responsive amélioré
+       ================================================ */
+    @media (max-width: 767px) {
+      .app-header { padding: 8px 12px; }
+      .app-logo span { font-size: 15px; }
+      .app-logo i { font-size: 20px; }
+      .search-section { padding: 10px; }
+      .search-row .form-control { font-size: 16px; /* evite zoom iOS */ }
+      .fuel-chips { gap: 4px; }
+      .fuel-chip { padding: 3px 8px; font-size: 11px; }
+      .filter-bar { gap: 4px; padding: 6px 10px; }
+      .filter-bar .form-select { font-size: 12px; padding: 4px 6px; }
+      .station-item { padding: 10px 12px; gap: 6px; }
+      .station-meta { gap: 4px; }
+      .station-badge { font-size: 10px; padding: 2px 6px; }
+      .station-price-big { font-size: 17px; }
+      .station-address { font-size: 12px; }
+      .route-form { padding: 10px; }
+      .route-form input.form-control { font-size: 16px; /* evite zoom iOS */ }
+      .view-tab { padding: 8px 4px; font-size: 12px; }
+      .view-tab i { display: block; font-size: 16px; margin-bottom: 2px; }
+      .toast-container { left: 12px; right: 12px; bottom: 12px; }
+      .toast-item { max-width: 100%; }
+      .map-panel { height: 45vh; min-height: 250px; }
+      .list-panel { max-height: none; }
+      .results-info { padding: 6px 10px; font-size: 11px; flex-wrap: wrap; gap: 4px; }
+      .route-station-item { gap: 6px; }
+      .route-km { min-width: 36px; font-size: 14px; }
+      #routeSortBar { padding: 6px 10px !important; }
+      #routeSortBar .btn { font-size: 11px; padding: 3px 8px; }
+      .multifuel-grid { grid-template-columns: 1fr 1fr !important; }
+      .detail-fuel-table { font-size: 12px; }
+      /* Bouton flottant bascule carte/liste */
+      .btn-toggle-map {
+        display: flex !important;
+        position: fixed; bottom: 20px; right: 20px; z-index: 1040;
+        width: 48px; height: 48px; border-radius: 50%;
+        background: var(--primary); color: #fff; border: none;
+        align-items: center; justify-content: center;
+        box-shadow: 0 4px 14px rgba(47,100,255,0.4);
+        font-size: 20px; cursor: pointer;
+        transition: transform 0.2s;
+      }
+      .btn-toggle-map:active { transform: scale(0.92); }
+    }
+    .btn-toggle-map { display: none; }
+
+    /* ================================================
+       Leaflet markercluster custom (design system)
+       ================================================ */
+    .marker-cluster-small { background-color: rgba(47, 100, 255, 0.3); }
+    .marker-cluster-small div { background-color: rgba(47, 100, 255, 0.7); color: #fff; }
+    .marker-cluster-medium { background-color: rgba(245, 158, 11, 0.3); }
+    .marker-cluster-medium div { background-color: rgba(245, 158, 11, 0.7); color: #fff; }
+    .marker-cluster-large { background-color: rgba(220, 38, 38, 0.3); }
+    .marker-cluster-large div { background-color: rgba(220, 38, 38, 0.7); color: #fff; }
+    .marker-cluster div {
+      font-family: "Manrope", sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    [data-theme="dark"] .marker-cluster-small { background-color: rgba(91, 138, 255, 0.3); }
+    [data-theme="dark"] .marker-cluster-small div { background-color: rgba(91, 138, 255, 0.7); }
+
+    /* ================================================
+       Map info bar (bottom sheet — remplace popup)
+       ================================================ */
+    .map-info-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: var(--panel);
+      border-top: 2px solid var(--primary);
+      padding: 10px 16px;
+      z-index: 1000;
+      display: none;
+      cursor: pointer;
+      box-shadow: 0 -4px 16px rgba(0,0,0,0.12);
+      animation: mapBarIn 0.2s ease-out;
+    }
+    .map-info-bar.active {
+      display: grid;
+      grid-template-columns: 1fr auto 32px;
+      gap: 10px;
+      align-items: center;
+    }
+    @keyframes mapBarIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .map-info-bar .bar-station-name { font-weight: 800; font-size: 14px; line-height: 1.2; }
+    .map-info-bar .bar-station-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+    .map-info-bar .bar-station-enseigne { font-size: 11px; color: var(--primary); font-weight: 600; }
+    .map-info-bar .bar-station-meta { display: flex; gap: 6px; margin-top: 3px; font-size: 11px; align-items: center; flex-wrap: wrap; }
+    .map-info-bar .bar-prices { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .map-info-bar .bar-fuel { text-align: center; min-width: 52px; }
+    .map-info-bar .bar-fuel-label { font-size: 10px; font-weight: 600; }
+    .map-info-bar .bar-fuel-price { font-size: 14px; font-weight: 800; }
+    .map-info-bar .bar-close {
+      background: none; border: none; color: var(--muted); font-size: 16px;
+      cursor: pointer; padding: 4px; border-radius: 6px; line-height: 1;
+    }
+    .map-info-bar .bar-close:hover { background: var(--sidebar); color: var(--text); }
+    [data-theme="dark"] .map-info-bar { box-shadow: 0 -4px 16px rgba(0,0,0,0.4); }
+    @media (max-width: 767px) {
+      .map-info-bar { padding: 8px 10px; }
+      .map-info-bar .bar-station-name { font-size: 13px; }
+      .map-info-bar .bar-fuel-price { font-size: 12px; }
+      .map-info-bar .bar-fuel { min-width: 44px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================
+       HEADER
+       ============================================ -->
+  <header class="app-header">
+    <div class="app-logo">
+      <i class="bi bi-fuel-pump-fill"></i>
+      <span>Comparateur Carburants</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <button class="btn btn-sm btn-outline-secondary" id="btnFavorites" title="Favoris">
+        <i class="bi bi-star"></i> <span class="d-none d-md-inline">Favoris</span>
+        <span class="badge bg-primary ms-1 d-none" id="favCount">0</span>
+      </button>
+      <button class="btn btn-sm btn-outline-secondary" id="btnTheme" title="Mode sombre">
+        <i class="bi bi-moon"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============================================
+       MAIN LAYOUT
+       ============================================ -->
+  <div class="app-main">
+
+    <!-- ---- Panneau gauche ---- -->
+    <div class="list-panel">
+
+      <!-- Recherche -->
+      <div class="search-section">
+        <div class="search-row" style="position:relative">
+          <input type="text" class="form-control form-control-sm" id="searchInput"
+                 placeholder="Code postal, ville ou adresse..." autocomplete="off">
+          <button class="btn btn-sm btn-primary" id="btnSearch" title="Rechercher">
+            <i class="bi bi-search"></i>
+          </button>
+          <button class="btn btn-sm btn-outline-primary" id="btnGeolocate" title="Ma position">
+            <i class="bi bi-crosshair"></i>
+          </button>
+          <!-- Search history dropdown -->
+          <div class="search-history d-none" id="searchHistory"></div>
+        </div>
+
+        <!-- Chips carburants -->
+        <div class="fuel-chips" id="fuelChips"></div>
+
+        <!-- Filtres -->
+        <div class="filter-bar">
+          <select class="form-select form-select-sm" id="sortSelect" style="max-width:160px">
+            <option value="price">Tri : prix croissant</option>
+            <option value="distance">Tri : distance</option>
+            <option value="date">Tri : mise à jour</option>
+          </select>
+          <select class="form-select form-select-sm" id="radiusSelect" style="max-width:130px">
+            <option value="5">Rayon : 5 km</option>
+            <option value="10" selected>Rayon : 10 km</option>
+            <option value="20">Rayon : 20 km</option>
+            <option value="50">Rayon : 50 km</option>
+          </select>
+          <label class="form-check form-check-sm ms-auto" style="font-size:12px">
+            <input type="checkbox" class="form-check-input" id="chk24h">
+            <span>24h/24</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Onglets liste / stats / itinéraire -->
+      <div class="view-tabs">
+        <div class="view-tab active" data-tab="list"><i class="bi bi-list-ul"></i> Stations</div>
+        <div class="view-tab" data-tab="stats"><i class="bi bi-bar-chart"></i> Stats</div>
+        <div class="view-tab" data-tab="route"><i class="bi bi-sign-turn-right"></i> Itinéraire</div>
+      </div>
+
+      <!-- Info résultats -->
+      <div class="results-info d-none" id="resultsInfo">
+        <span id="resultsCount"></span>
+        <span id="resultsArea"></span>
+      </div>
+
+      <!-- Contenu : Liste -->
+      <div class="tab-content active" id="tabList">
+        <div id="stationList">
+          <div class="empty-state" id="emptyState">
+            <i class="bi bi-fuel-pump"></i>
+            <div><strong>Recherchez des stations</strong></div>
+            <div style="margin-top:6px;">Entrez un code postal, une ville, ou utilisez la géolocalisation</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contenu : Stats -->
+      <div class="tab-content" id="tabStats">
+        <div class="p-3" id="statsContent">
+          <div class="empty-state">
+            <i class="bi bi-bar-chart"></i>
+            <div>Lancez une recherche pour voir les statistiques</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contenu : Itinéraire -->
+      <div class="tab-content" id="tabRoute">
+        <div class="route-form">
+          <div class="route-input-group">
+            <div class="route-connector"></div>
+            <div class="route-input-wrap" style="position:relative">
+              <div class="route-dot route-dot-start"></div>
+              <input type="text" class="form-control form-control-sm" id="routeFrom" placeholder="Ville de départ..." autocomplete="off">
+              <div class="autocomplete-list d-none" id="acFrom"></div>
+            </div>
+            <div class="route-input-wrap" style="position:relative">
+              <div class="route-dot route-dot-end"></div>
+              <input type="text" class="form-control form-control-sm" id="routeTo" placeholder="Ville d'arrivée..." autocomplete="off">
+              <div class="autocomplete-list d-none" id="acTo"></div>
+            </div>
+          </div>
+          <div class="route-actions">
+            <button class="btn btn-sm btn-primary flex-fill" id="btnCalcRoute">
+              <i class="bi bi-sign-turn-right"></i> Calculer l'itinéraire
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" id="btnClearRoute" title="Effacer">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          <div class="mt-2 d-flex align-items-center gap-2">
+            <label class="form-check mb-0" style="font-size:12px">
+              <input type="checkbox" class="form-check-input" id="chkAvoidTolls">
+              <span><i class="bi bi-slash-circle"></i> Éviter les autoroutes</span>
+            </label>
+            <button class="btn btn-sm btn-link p-0" style="font-size:10px" id="btnOrsConfig" title="Configurer la clé API OpenRouteService"><i class="bi bi-gear"></i></button>
+          </div>
+        </div>
+        <div class="route-progress d-none" id="routeProgress"></div>
+        <div class="route-info-bar d-none" id="routeInfoBar"></div>
+        <div class="route-cost-calc d-none" id="routeCostCalc"></div>
+        <div class="d-none" id="routeSortBar" style="gap:6px;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--panel);align-items:center">
+          <span style="font-size:12px;color:var(--muted);white-space:nowrap">Trier :</span>
+          <button class="btn btn-sm btn-outline-primary active" data-route-sort="route" id="routeSortRoute"><i class="bi bi-signpost-2"></i> Trajet</button>
+          <button class="btn btn-sm btn-outline-primary" data-route-sort="price" id="routeSortPrice"><i class="bi bi-sort-numeric-down"></i> Prix</button>
+          <button class="btn btn-sm btn-outline-primary" data-route-sort="distance" id="routeSortDist"><i class="bi bi-geo-alt"></i> Distance</button>
+        </div>
+        <div id="routeStationList">
+          <div class="empty-state">
+            <i class="bi bi-sign-turn-right"></i>
+            <div><strong>Planifiez votre trajet</strong></div>
+            <div style="margin-top:6px;font-size:13px">Entrez un point de départ et d'arrivée pour trouver les stations les moins chères sur votre route</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- Panneau carte ---- -->
+    <div class="map-panel">
+      <div id="map"></div>
+      <!-- Barre info station (bottom sheet) -->
+      <div class="map-info-bar" id="mapInfoBar">
+        <div id="mapInfoLeft"></div>
+        <div class="bar-prices" id="mapInfoPrices"></div>
+        <button class="bar-close" id="mapInfoClose" title="Fermer"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="loading-overlay d-none" id="loadingOverlay">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Chargement...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bouton flottant mobile carte/liste -->
+  <button class="btn-toggle-map" id="btnToggleMap" title="Voir la carte">
+    <i class="bi bi-map"></i>
+  </button>
+
+  <!-- ============================================
+       OFFCANVAS — Détail station
+       ============================================ -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="stationDetail" style="width:400px; max-width:90vw;">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="detailTitle">Détail station</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body" id="detailBody"></div>
+  </div>
+
+  <!-- ============================================
+       OFFCANVAS — Favoris
+       ============================================ -->
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="favoritesPanel" style="width:380px; max-width:90vw;">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title"><i class="bi bi-star-fill text-warning"></i> Stations favorites</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body" id="favoritesBody"></div>
+  </div>
+
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ============================================
+       SCRIPTS
+       ============================================ -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  <script src="js/api.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/favorites.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/route.js"></script>
+  <script>
+    /* ============================================================
+       app.js — Controleur principal (v2 — 15 ameliorations)
+       ============================================================ */
+    (() => {
+      'use strict';
+
+      /* ---- State ---- */
+      let currentStations = [];
+      let currentFuel = 'e10';
+      let currentSort = 'price';
+      let currentRadius = 10;
+      let userPos = null;
+      let filter24h = false;
+      let lastRouteDistance = 0;
+
+      /* ---- DOM ---- */
+      const $ = id => document.getElementById(id);
+      const searchInput    = $('searchInput');
+      const btnSearch      = $('btnSearch');
+      const btnGeolocate   = $('btnGeolocate');
+      const fuelChips      = $('fuelChips');
+      const sortSelect     = $('sortSelect');
+      const radiusSelect   = $('radiusSelect');
+      const chk24h         = $('chk24h');
+      const stationList    = $('stationList');
+      const emptyState     = $('emptyState');
+      const resultsInfo    = $('resultsInfo');
+      const resultsCount   = $('resultsCount');
+      const resultsArea    = $('resultsArea');
+      const loadingOverlay = $('loadingOverlay');
+      const statsContent   = $('statsContent');
+      const btnTheme       = $('btnTheme');
+      const btnFavorites   = $('btnFavorites');
+      const favCount       = $('favCount');
+      const detailBody     = $('detailBody');
+      const detailTitle    = $('detailTitle');
+      const searchHistoryEl = $('searchHistory');
+
+      /* ===========================================================
+         [4] TOAST NOTIFICATIONS
+         =========================================================== */
+      function showToast(message, type = 'info', duration = 3000) {
+        const container = $('toastContainer');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = `toast-item toast-${type}`;
+        const icons = { success: 'check-circle-fill', info: 'info-circle-fill', warning: 'exclamation-triangle-fill', error: 'x-circle-fill' };
+        toast.innerHTML = `<i class="bi bi-${icons[type] || icons.info}"></i><span>${message}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => { toast.classList.add('toast-out'); setTimeout(() => toast.remove(), 300); }, duration);
+      }
+
+      /* ===========================================================
+         [6] SEARCH HISTORY (localStorage, 10 derniers)
+         =========================================================== */
+      const SEARCH_HISTORY_KEY = 'carburant_search_history';
+      const MAX_SEARCH_HISTORY = 10;
+
+      function getSearchHistory() {
+        try { return JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY)) || []; } catch { return []; }
+      }
+      function addSearchHistory(query) {
+        let history = getSearchHistory().filter(h => h !== query);
+        history.unshift(query);
+        if (history.length > MAX_SEARCH_HISTORY) history = history.slice(0, MAX_SEARCH_HISTORY);
+        localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+      }
+      function clearSearchHistory() {
+        localStorage.removeItem(SEARCH_HISTORY_KEY);
+        searchHistoryEl.classList.add('d-none');
+        showToast('Historique effac\u00e9', 'info');
+      }
+      function showSearchHistoryDropdown() {
+        const history = getSearchHistory();
+        if (history.length === 0) { searchHistoryEl.classList.add('d-none'); return; }
+        searchHistoryEl.innerHTML = `
+          <div class="search-history-header"><span>Recherches r\u00e9centes</span><button class="btn btn-sm btn-link p-0" style="font-size:11px" id="clearHistoryBtn">Effacer</button></div>
+          ${history.map(h => `<div class="search-history-item" data-query="${_esc(h)}"><i class="bi bi-clock-history"></i> ${_esc(h)}</div>`).join('')}
+        `;
+        searchHistoryEl.classList.remove('d-none');
+        $('clearHistoryBtn')?.addEventListener('click', e => { e.stopPropagation(); clearSearchHistory(); });
+        searchHistoryEl.querySelectorAll('.search-history-item').forEach(el => {
+          el.addEventListener('mousedown', e => { e.preventDefault(); searchInput.value = el.dataset.query; searchHistoryEl.classList.add('d-none'); doSearch(); });
+        });
+      }
+      searchInput.addEventListener('focus', () => { if (searchInput.value.trim() === '') showSearchHistoryDropdown(); });
+      searchInput.addEventListener('blur', () => { setTimeout(() => searchHistoryEl.classList.add('d-none'), 200); });
+
+      /* ---- Init carte ---- */
+      const mapInfoBar    = $('mapInfoBar');
+      const mapInfoLeft   = $('mapInfoLeft');
+      const mapInfoPrices = $('mapInfoPrices');
+      const mapInfoClose  = $('mapInfoClose');
+      let _mapInfoStation = null;
+
+      function showMapInfoBar(station) {
+        _mapInfoStation = station;
+        const name = station.nom || station.adresse;
+        const enseigne = station.enseigne && station.enseigne !== 'Ind\u00e9pendant sans enseigne' ? station.enseigne : '';
+        const dist = station.distance != null ? Utils.formatDistance(station.distance) : '';
+        mapInfoLeft.innerHTML = `
+          <div class="bar-station-name">${_esc(name)}</div>
+          ${enseigne ? `<div class="bar-station-enseigne">${_esc(enseigne)}</div>` : ''}
+          <div class="bar-station-sub">${_esc(station.cp)} ${_esc(station.ville)}</div>
+          <div class="bar-station-meta">
+            ${dist ? `<span><i class="bi bi-geo-alt text-primary"></i> ${dist}</span>` : ''}
+            ${station.automate24h ? '<span style="color:var(--success-text)"><i class="bi bi-clock"></i> 24h/24</span>' : ''}
+          </div>`;
+        let pricesHtml = '';
+        CarburantAPI.FUEL_TYPES.forEach(ft => {
+          const f = station.fuels[ft.key];
+          if (!f) return;
+          pricesHtml += `<div class="bar-fuel"><div class="bar-fuel-label" style="color:${ft.color}">${ft.label}</div><div class="bar-fuel-price" style="color:${ft.color}">${f.prix.toFixed(3).replace('.', ',')}</div></div>`;
+        });
+        mapInfoPrices.innerHTML = pricesHtml;
+        mapInfoBar.classList.add('active');
+      }
+
+      function hideMapInfoBar() { mapInfoBar.classList.remove('active'); _mapInfoStation = null; }
+
+      mapInfoBar.addEventListener('click', (e) => {
+        if (e.target.closest('.bar-close')) return;
+        if (_mapInfoStation) showDetail(_mapInfoStation);
+      });
+      mapInfoClose.addEventListener('click', (e) => { e.stopPropagation(); hideMapInfoBar(); });
+
+      CarburantMap.init('map', { onStationClick: station => showMapInfoBar(station) });
+
+      // Fermer la barre info quand on clique sur la carte (pas sur un marqueur)
+      CarburantMap.getMap().on('click', () => hideMapInfoBar());
+
+      /* ---- Fuel chips ---- */
+      function renderFuelChips() {
+        fuelChips.innerHTML = '';
+        CarburantAPI.FUEL_TYPES.forEach(ft => {
+          const chip = document.createElement('div');
+          chip.className = `fuel-chip${ft.key === currentFuel ? ' active' : ''}`;
+          chip.textContent = ft.label;
+          chip.style.setProperty('--chip-color', ft.color);
+          chip.addEventListener('click', () => { currentFuel = ft.key; renderFuelChips(); applyFiltersAndRender(); });
+          fuelChips.appendChild(chip);
+        });
+      }
+      renderFuelChips();
+
+      /* ---- Tabs ---- */
+      const tabMap = { list: 'tabList', stats: 'tabStats', route: 'tabRoute' };
+      document.querySelectorAll('.view-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          tab.classList.add('active');
+          const target = tabMap[tab.dataset.tab];
+          if (target) $(target).classList.add('active');
+          if (tab.dataset.tab === 'route') CarburantMap.invalidateSize();
+        });
+      });
+
+      /* ---- Recherche ---- */
+      async function doSearch() {
+        const q = searchInput.value.trim();
+        if (!q) return;
+        showLoading(true);
+        searchHistoryEl.classList.add('d-none');
+        try {
+          let stations;
+          if (/^\d{5}$/.test(q)) { stations = await CarburantAPI.searchByPostalCode(q); resultsArea.textContent = `CP ${q}`; }
+          else if (/^\d{2,3}$/.test(q)) { stations = await CarburantAPI.searchByDepartment(q); resultsArea.textContent = `D\u00e9pt. ${q}`; }
+          else { stations = await CarburantAPI.searchByCity(q); resultsArea.textContent = q; }
+          currentStations = stations;
+          addSearchHistory(q);
+          CarburantAPI.enrichStationNames(stations).then(() => applyFiltersAndRender());
+          applyFiltersAndRender();
+          showToast(`${stations.length} station${stations.length > 1 ? 's' : ''} trouv\u00e9e${stations.length > 1 ? 's' : ''}`, 'success');
+          _updateUrl({ q, fuel: currentFuel });
+        } catch (err) { showError(`Erreur : ${err.message}`); showToast(err.message, 'error'); }
+        finally { showLoading(false); }
+      }
+
+      btnSearch.addEventListener('click', doSearch);
+      searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+      /* ---- Geolocalisation ---- */
+      btnGeolocate.addEventListener('click', async () => {
+        showLoading(true);
+        try {
+          userPos = await Utils.getUserPosition();
+          CarburantMap.showUserPosition(userPos.lat, userPos.lon);
+          const stations = await CarburantAPI.searchByGeo(userPos.lat, userPos.lon, currentRadius);
+          currentStations = stations;
+          resultsArea.textContent = `${currentRadius} km autour de vous`;
+          // Reverse geocoding pour afficher l'adresse
+          fetch(`https://nominatim.openstreetmap.org/reverse?lat=${userPos.lat}&lon=${userPos.lon}&format=json&zoom=16&addressdetails=1`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (!data || !data.address) return;
+              const a = data.address;
+              const parts = [a.road, a.house_number ? `n\u00b0${a.house_number}` : '', a.postcode, a.city || a.town || a.village || a.municipality || ''].filter(Boolean);
+              searchInput.value = parts.join(', ');
+            })
+            .catch(() => {});
+          CarburantAPI.enrichStationNames(stations).then(() => applyFiltersAndRender());
+          applyFiltersAndRender();
+          showToast(`${stations.length} stations dans un rayon de ${currentRadius} km`, 'success');
+        } catch (err) { showError(`G\u00e9olocalisation : ${err.message}`); showToast(err.message, 'error'); }
+        finally { showLoading(false); }
+      });
+
+      /* ---- Filtres ---- */
+      sortSelect.addEventListener('change', () => { currentSort = sortSelect.value; applyFiltersAndRender(); });
+      radiusSelect.addEventListener('change', async () => {
+        currentRadius = parseInt(radiusSelect.value);
+        if (userPos) {
+          showLoading(true);
+          try {
+            const stations = await CarburantAPI.searchByGeo(userPos.lat, userPos.lon, currentRadius);
+            currentStations = stations;
+            resultsArea.textContent = `${currentRadius} km autour de vous`;
+            CarburantAPI.enrichStationNames(stations).then(() => applyFiltersAndRender());
+            applyFiltersAndRender();
+          } catch (err) { showError(err.message); } finally { showLoading(false); }
+        }
+      });
+      chk24h.addEventListener('change', () => { filter24h = chk24h.checked; applyFiltersAndRender(); });
+
+      /* ---- Rendu principal ---- */
+      function applyFiltersAndRender() {
+        let filtered = Utils.filterByFuel(currentStations, currentFuel);
+        if (filter24h) filtered = filtered.filter(s => s.automate24h);
+        const sorted = Utils.sortStations(filtered, currentFuel, currentSort);
+        renderStationList(sorted);
+        CarburantMap.showStations(sorted, currentFuel);
+        renderStats(sorted);
+        updateResultsInfo(sorted.length, currentStations.length);
+        // Enregistrer les prix de toutes les stations pour l'historique
+        Favorites.recordPrices(currentStations);
+      }
+
+      function renderStationList(stations) {
+        if (stations.length === 0) {
+          stationList.innerHTML = `<div class="empty-state"><i class="bi bi-emoji-frown"></i><div>Aucune station trouv\u00e9e</div><div style="margin-top:6px;font-size:12px">Essayez un autre carburant ou \u00e9largissez le rayon</div></div>`;
+          return;
+        }
+        const prices = stations.map(s => s.fuels[currentFuel]?.prix).filter(Boolean);
+        const minP = Math.min(...prices);
+        const maxP = Math.max(...prices);
+        // [7] Best price
+        const bestId = stations.reduce((best, s) => {
+          const p = s.fuels[currentFuel]?.prix;
+          if (p != null && (best.prix == null || p < best.prix)) return { id: s.id, prix: p };
+          return best;
+        }, { id: null, prix: null }).id;
+
+        stationList.innerHTML = stations.map(station => {
+          const fuel = station.fuels[currentFuel];
+          const price = fuel?.prix;
+          const priceClass = _priceClass(price, minP, maxP);
+          const dist = station.distance != null ? Utils.formatDistance(station.distance) : '';
+          const isFav = Favorites.isFavorite(station.id);
+          const isBest = station.id === bestId && stations.length > 1;
+          const popLabel = station.pop === 'A' ? 'Autoroute' : station.pop === 'R' ? 'Route' : '';
+          return `<div class="station-item" data-id="${station.id}">
+            <div>
+              ${station.nom ? `<div style="font-weight:700;font-size:14px;margin-bottom:2px">${_esc(station.nom)}</div>` : ''}
+              ${station.enseigne && station.enseigne !== 'Ind\u00e9pendant sans enseigne' ? `<div style="font-size:12px;color:var(--primary);font-weight:600;margin-bottom:2px">${_esc(station.enseigne)}</div>` : ''}
+              <div class="station-address">${_esc(station.adresse)}</div>
+              <div class="station-city">${_esc(station.cp)} ${_esc(station.ville)}${station.departement ? ` (${_esc(station.departement)})` : ''}</div>
+              <div class="station-meta">
+                ${isBest ? '<span class="best-price-badge"><i class="bi bi-trophy-fill"></i> Meilleur prix</span>' : ''}
+                ${popLabel ? `<span class="station-badge" style="background:var(--sidebar);color:var(--muted)">${popLabel}</span>` : ''}
+                ${dist ? `<span class="station-badge" style="background:var(--primary-light);color:var(--primary)"><i class="bi bi-geo-alt"></i> ${dist}</span>` : ''}
+                ${station.automate24h ? '<span class="station-badge" style="background:var(--success-bg);color:var(--success-text)">24h/24</span>' : ''}
+                ${isFav ? '<span class="station-badge" style="background:#fef3c7;color:#d97706"><i class="bi bi-star-fill"></i></span>' : ''}
+              </div>
+            </div>
+            <div>
+              <div class="station-price-big ${priceClass}">${price ? price.toFixed(3).replace('.', ',') : '\u2014'}</div>
+              <div class="station-price-sub">${price ? '\u20ac/L' : ''}</div>
+              ${fuel?.maj ? `<div style="margin-top:2px">${_freshBadge(fuel.maj)}</div>` : ''}
+            </div>
+          </div>`;
+        }).join('');
+        // Bouton "Charger les noms suivants" si stations sans nom au-dela de 50
+        const unnamed = stations.filter(s => !s.nom);
+        if (unnamed.length > 0) {
+          const btnMore = document.createElement('div');
+          btnMore.className = 'text-center py-2';
+          btnMore.innerHTML = `<button class="btn btn-sm btn-outline-primary" id="btnLoadMoreNames"><i class="bi bi-arrow-clockwise"></i> Charger les noms (${unnamed.length} restantes)</button>`;
+          stationList.appendChild(btnMore);
+          btnMore.querySelector('button').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const btn = e.currentTarget;
+            btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Chargement...';
+            await CarburantAPI.enrichStationNames(stations, stations.length);
+            renderStationList(stations);
+          });
+        }
+        stationList.querySelectorAll('.station-item').forEach(el => {
+          el.addEventListener('click', () => {
+            const id = parseInt(el.dataset.id) || el.dataset.id;
+            const station = stations.find(s => String(s.id) === String(id));
+            if (station) showDetail(station);
+          });
+        });
+      }
+
+      /* [9] Cache indicator */
+      function updateResultsInfo(shown, total) {
+        if (total === 0) { resultsInfo.classList.add('d-none'); return; }
+        resultsInfo.classList.remove('d-none');
+        const meta = CarburantAPI.getLastMeta();
+        const cacheHtml = meta.fromCache
+          ? `<span class="cache-indicator from-cache"><span class="cache-dot"></span> Cache (${Math.round(meta.cacheAge / 60000)} min)</span>`
+          : `<span class="cache-indicator from-live"><span class="cache-dot"></span> Temps r\u00e9el</span>`;
+        resultsCount.innerHTML = `${shown} station${shown > 1 ? 's' : ''} avec ${CarburantAPI.getFuelLabel(currentFuel)} ${cacheHtml}`;
+      }
+
+      /* ---- Stats ---- */
+      function renderStats(stations) {
+        const stats = Utils.computeStats(stations, currentFuel);
+        if (!stats) { statsContent.innerHTML = `<div class="empty-state"><i class="bi bi-bar-chart"></i><div>Pas assez de donn\u00e9es</div></div>`; return; }
+        const fuelLabel = CarburantAPI.getFuelLabel(currentFuel);
+        const fuelColor = CarburantAPI.getFuelColor(currentFuel);
+        const spread = stats.max - stats.min;
+        statsContent.innerHTML = `
+          <h6 class="mb-3"><span style="color:${fuelColor}"><i class="bi bi-circle-fill" style="font-size:10px"></i></span> ${fuelLabel} \u2014 ${stats.count} stations</h6>
+          <div class="row g-2 mb-3">
+            <div class="col-4"><div class="stat-card"><div class="stat-value price-low">${stats.min.toFixed(3).replace('.', ',')}</div><div class="stat-label">Minimum</div></div></div>
+            <div class="col-4"><div class="stat-card"><div class="stat-value">${stats.avg.toFixed(3).replace('.', ',')}</div><div class="stat-label">Moyenne</div></div></div>
+            <div class="col-4"><div class="stat-card"><div class="stat-value price-high">${stats.max.toFixed(3).replace('.', ',')}</div><div class="stat-label">Maximum</div></div></div>
+          </div>
+          <div class="stat-card mb-3"><div class="stat-value" style="font-size:16px">${spread.toFixed(3).replace('.', ',')} \u20ac/L</div><div class="stat-label">\u00c9cart min/max</div></div>
+          <div class="eco-calc">
+            <h6 class="mb-2"><i class="bi bi-calculator"></i> \u00c9conomie sur un plein</h6>
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <label class="form-label mb-0" style="font-size:12px;white-space:nowrap">Volume :</label>
+              <input type="number" class="form-control form-control-sm" id="tankVolume" value="50" min="10" max="120" step="5" style="max-width:80px">
+              <span style="font-size:12px">litres</span>
+            </div>
+            <div id="ecoResult" style="font-size:13px"></div>
+          </div>
+          <div class="mt-3"><h6 class="mb-2">R\u00e9partition des prix</h6><div id="priceDistribution"></div></div>
+          <div class="mt-3"><h6 class="mb-2"><i class="bi bi-columns-gap"></i> Comparaison multi-carburants</h6><div id="multiFuelCompare" class="multifuel-grid"></div></div>
+          <div class="mt-3"><h6 class="mb-2">Tableau tous carburants</h6><div id="allFuelsStats"></div></div>
+        `;
+        renderEcoCalc(stats);
+        renderPriceDistribution(stations);
+        renderMultiFuelCompare(stations);
+        renderAllFuelsComparison(stations);
+        $('tankVolume')?.addEventListener('input', () => renderEcoCalc(stats));
+      }
+
+      function renderEcoCalc(stats) {
+        const vol = parseInt($('tankVolume')?.value) || 50;
+        const saving = (stats.max - stats.min) * vol;
+        const r = $('ecoResult');
+        if (!r) return;
+        r.innerHTML = `
+          <div class="d-flex justify-content-between"><span>Plein le moins cher</span><strong class="price-low">${(stats.min * vol).toFixed(2).replace('.', ',')} \u20ac</strong></div>
+          <div class="d-flex justify-content-between"><span>Plein le plus cher</span><strong class="price-high">${(stats.max * vol).toFixed(2).replace('.', ',')} \u20ac</strong></div>
+          <div class="d-flex justify-content-between mt-1" style="border-top:1px solid var(--line);padding-top:6px"><span><strong>\u00c9conomie possible</strong></span><strong style="color:var(--primary)">${saving.toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+      }
+
+      function renderPriceDistribution(stations) {
+        const prices = stations.filter(s => s.fuels[currentFuel]).map(s => s.fuels[currentFuel].prix);
+        if (prices.length < 3) return;
+        const min = Math.min(...prices), max = Math.max(...prices), range = max - min || 0.001;
+        const bc = 8, bs = range / bc, buckets = Array(bc).fill(0);
+        prices.forEach(p => { buckets[Math.min(Math.floor((p - min) / bs), bc - 1)]++; });
+        const mb = Math.max(...buckets);
+        const c = $('priceDistribution');
+        if (!c) return;
+        c.innerHTML = `<div style="display:flex;align-items:flex-end;gap:3px;height:80px;">${buckets.map((b, i) => {
+          const h = mb > 0 ? (b / mb) * 100 : 0, ratio = i / (bc - 1);
+          const color = ratio <= 0.33 ? '#16a34a' : ratio <= 0.66 ? '#f59e0b' : '#dc2626';
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;"><div style="width:100%;height:${h}%;min-height:2px;background:${color};border-radius:3px 3px 0 0;transition:height 0.3s" title="${b} stations"></div></div>`;
+        }).join('')}</div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;"><span>${min.toFixed(3)}</span><span>${max.toFixed(3)}</span></div>`;
+      }
+
+      /* [14] Multi-fuel comparison */
+      function renderMultiFuelCompare(stations) {
+        const c = $('multiFuelCompare');
+        if (!c) return;
+        c.innerHTML = '';
+        CarburantAPI.FUEL_TYPES.forEach(ft => {
+          const s = Utils.computeStats(stations, ft.key);
+          if (!s) return;
+          const card = document.createElement('div');
+          card.className = 'multifuel-card';
+          card.innerHTML = `<div class="fuel-name" style="color:${ft.color}">${ft.label}</div><div class="fuel-price" style="color:${ft.color}">${s.min.toFixed(3).replace('.', ',')}</div><div style="font-size:11px;color:var(--muted)">moy. ${s.avg.toFixed(3).replace('.', ',')}</div><div class="fuel-date">${s.count} station${s.count > 1 ? 's' : ''}</div>`;
+          c.appendChild(card);
+        });
+      }
+
+      function renderAllFuelsComparison(stations) {
+        const c = $('allFuelsStats');
+        if (!c) return;
+        let html = '<div class="table-responsive"><table class="table table-sm" style="font-size:12px"><thead><tr><th>Carburant</th><th>Min</th><th>Moy</th><th>Max</th><th>Nb</th></tr></thead><tbody>';
+        CarburantAPI.FUEL_TYPES.forEach(ft => {
+          const s = Utils.computeStats(stations, ft.key);
+          if (!s) return;
+          html += `<tr><td><span style="color:${ft.color};font-weight:700">${ft.label}</span></td><td class="price-low">${s.min.toFixed(3)}</td><td>${s.avg.toFixed(3)}</td><td class="price-high">${s.max.toFixed(3)}</td><td>${s.count}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        c.innerHTML = html;
+      }
+
+      /* ---- Detail station ---- */
+      function showDetail(station) {
+        detailTitle.textContent = station.nom || station.ville;
+        const isFav = Favorites.isFavorite(station.id);
+        Favorites.recordPrices(station); // enregistrer les prix pour l'historique (toutes stations)
+
+        let fuelsHtml = '<table class="table table-sm detail-fuel-table"><thead><tr><th>Carburant</th><th>Prix</th><th>MAJ</th></tr></thead><tbody>';
+        CarburantAPI.FUEL_TYPES.forEach(ft => {
+          const f = station.fuels[ft.key];
+          if (!f) return;
+          const rupture = f.rupture ? '<span class="badge bg-danger ms-1">Rupture</span>' : '';
+          fuelsHtml += `<tr><td><span class="detail-fuel-label" style="color:${ft.color}">${ft.label}</span>${rupture}</td><td style="font-weight:700">${f.prix.toFixed(3).replace('.', ',')} \u20ac/L</td><td>${_freshBadge(f.maj)}</td></tr>`;
+        });
+        fuelsHtml += '</tbody></table>';
+
+        const servicesHtml = station.services.length > 0
+          ? `<div class="detail-services">${station.services.map(s => `<span class="detail-service-badge">${_esc(s)}</span>`).join('')}</div>`
+          : '<div style="color:var(--muted);font-size:13px">Aucun service renseign\u00e9</div>';
+        const distHtml = station.distance != null ? `<div class="mb-3"><i class="bi bi-geo-alt text-primary"></i> <strong>${Utils.formatDistance(station.distance)}</strong> de votre position</div>` : '';
+        const mapsUrl = station.lat && station.lon ? `https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lon}` : '#';
+        const historyHtml = _buildPriceHistoryHtml(station); // [15]
+
+        detailBody.innerHTML = `
+          <div class="mb-3">
+            ${station.nom ? `<div style="font-weight:800;font-size:16px;margin-bottom:2px">${_esc(station.nom)}</div>` : ''}
+            ${station.enseigne && station.enseigne !== 'Ind\u00e9pendant sans enseigne' ? `<div style="font-size:13px;color:var(--primary);font-weight:600;margin-bottom:4px">${_esc(station.enseigne)}</div>` : ''}
+            <div style="font-weight:700;font-size:15px">${_esc(station.adresse)}</div>
+            <div style="color:var(--muted)">${_esc(station.cp)} ${_esc(station.ville)}</div>
+            <div style="color:var(--muted);font-size:12px">${_esc(station.departement)} \u2014 ${_esc(station.region)}</div>
+          </div>
+          ${distHtml}
+          <div class="d-flex gap-2 mb-3 flex-wrap">
+            <button class="btn btn-sm btn-outline-primary flex-fill" id="btnDetailItineraire"><i class="bi bi-sign-turn-right"></i> Itin\u00e9raire</button>
+            <button class="btn btn-sm ${isFav ? 'btn-warning' : 'btn-outline-warning'} flex-fill" id="btnDetailFav"><i class="bi bi-star${isFav ? '-fill' : ''}"></i> ${isFav ? 'Retirer' : 'Favoris'}</button>
+            <button class="btn btn-sm btn-outline-secondary" id="btnDetailMap" title="Voir sur la carte"><i class="bi bi-map"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" id="btnDetailShare" title="Partager"><i class="bi bi-share"></i></button>
+          </div>
+          ${station.automate24h ? '<div class="alert alert-success py-2" style="font-size:13px"><i class="bi bi-clock"></i> Station avec automate 24h/24</div>' : ''}
+          <h6 class="mt-3 mb-2">Prix des carburants</h6>
+          ${fuelsHtml}
+          ${historyHtml}
+          <h6 class="mt-3 mb-2">Services</h6>
+          ${servicesHtml}
+          ${station.horaires ? `<h6 class="mt-3 mb-2">Horaires</h6><div style="font-size:12px;white-space:pre-line;color:var(--muted)">${_formatHoraires(station.horaires)}</div>` : ''}
+          <div class="mt-3" style="font-size:11px;color:var(--muted)">ID : ${station.id} | ${station.pop === 'R' ? 'Route' : station.pop === 'A' ? 'Autoroute' : station.pop || '\u2014'}</div>
+        `;
+
+        $('btnDetailItineraire')?.addEventListener('click', () => window.open(mapsUrl, '_blank'));
+        $('btnDetailFav')?.addEventListener('click', () => {
+          const added = Favorites.toggle(station);
+          if (added) { Favorites.recordPrices(station); showToast('Station ajout\u00e9e aux favoris', 'success'); }
+          else showToast('Station retir\u00e9e des favoris', 'info');
+          showDetail(station); updateFavCount(); applyFiltersAndRender();
+        });
+        $('btnDetailMap')?.addEventListener('click', () => { CarburantMap.focusStation(station); bootstrap.Offcanvas.getInstance($('stationDetail'))?.hide(); });
+        $('btnDetailShare')?.addEventListener('click', () => {
+          const url = new URL(window.location.href.split('?')[0]);
+          if (station.lat && station.lon) { url.searchParams.set('lat', station.lat.toFixed(5)); url.searchParams.set('lon', station.lon.toFixed(5)); url.searchParams.set('fuel', currentFuel); url.searchParams.set('sid', station.id); }
+          if (navigator.clipboard) navigator.clipboard.writeText(url.toString()).then(() => showToast('Lien copi\u00e9 !', 'success'));
+          else showToast(url.toString(), 'info', 5000);
+        });
+        new bootstrap.Offcanvas($('stationDetail')).show();
+      }
+
+      /* [15] Price history sparkline SVG */
+      function _buildPriceHistoryHtml(station) {
+        const history = Favorites.getPriceHistory(station.id);
+        if (!history || Object.keys(history).length === 0) {
+          return `<h6 class="mt-3 mb-2"><i class="bi bi-graph-up"></i> Historique des prix</h6>
+            <div style="font-size:12px;color:var(--muted);padding:8px;background:var(--sidebar);border-radius:8px">
+              <i class="bi bi-info-circle"></i> Premier relev\u00e9 enregistr\u00e9 aujourd'hui. L'historique se construira au fil de vos visites.
+            </div>`;
+        }
+        let html = '<h6 class="mt-3 mb-2"><i class="bi bi-graph-up"></i> Historique des prix</h6>';
+        let hasChart = false;
+        for (const [fuelKey, entries] of Object.entries(history)) {
+          const ft = CarburantAPI.FUEL_TYPES.find(f => f.key === fuelKey);
+          if (!ft) continue;
+          if (entries.length < 2) {
+            html += `<div style="margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:${ft.color}">${ft.label} <span style="font-weight:400;color:var(--muted)">\u2014 ${entries[0].prix.toFixed(3).replace('.', ',')} \u20ac/L le ${_fmtDate(entries[0].date)}</span></div></div>`;
+            hasChart = true;
+            continue;
+          }
+          hasChart = true;
+          const prices = entries.map(e => e.prix);
+          const minP = Math.min(...prices), maxP = Math.max(...prices), range = maxP - minP || 0.001;
+          const w = 200, h = 50, pad = 4, step = (w - pad * 2) / (prices.length - 1);
+          const points = prices.map((p, i) => `${pad + i * step},${h - pad - ((p - minP) / range) * (h - pad * 2)}`).join(' ');
+          const diff = prices[prices.length - 1] - prices[0];
+          const diffStr = diff > 0 ? `+${diff.toFixed(3)}` : diff.toFixed(3);
+          const diffColor = diff > 0 ? '#dc2626' : diff < 0 ? '#16a34a' : 'var(--muted)';
+          html += `<div style="margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:${ft.color}">${ft.label} <span style="font-weight:400;color:var(--muted)">(${entries.length} relev\u00e9s)</span> <span style="font-size:11px;color:${diffColor};font-weight:700">${diffStr} \u20ac</span></div>
+            <svg class="price-history-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline fill="none" stroke="${ft.color}" stroke-width="2" points="${points}"/></svg>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)"><span>${_fmtDate(entries[0].date)} \u2014 ${entries[0].prix.toFixed(3)} \u20ac</span><span>${_fmtDate(entries[entries.length - 1].date)} \u2014 ${entries[entries.length - 1].prix.toFixed(3)} \u20ac</span></div></div>`;
+        }
+        return html;
+      }
+
+      /* ---- Favoris panel ---- */
+      btnFavorites.addEventListener('click', () => { renderFavoritesPanel(); new bootstrap.Offcanvas($('favoritesPanel')).show(); });
+
+      function renderFavoritesPanel() {
+        const favs = Favorites.getAll();
+        const body = $('favoritesBody');
+        if (favs.length === 0) {
+          body.innerHTML = `<div class="fav-empty"><i class="bi bi-star"></i><div>Aucune station favorite</div><div style="font-size:13px;margin-top:8px">Cliquez sur l'\u00e9toile dans le d\u00e9tail d'une station pour l'ajouter</div></div>`;
+          return;
+        }
+        // Enrichir les favoris sans nom en arriere-plan (une seule fois)
+        const toEnrich = favs.filter(f => !f.nom);
+        if (toEnrich.length > 0 && !renderFavoritesPanel._enriching) {
+          renderFavoritesPanel._enriching = true;
+          CarburantAPI.enrichStationNames(toEnrich).then(() => {
+            let updated = false;
+            toEnrich.forEach(f => { if (f.nom) { Favorites.updateInfo(f.id, f.nom, f.enseigne); updated = true; } });
+            renderFavoritesPanel._enriching = false;
+            if (updated) renderFavoritesPanel();
+          }).catch(() => { renderFavoritesPanel._enriching = false; });
+        }
+        body.innerHTML = favs.map(f => `
+          <div class="list-group-item d-flex justify-content-between align-items-start" style="cursor:pointer" data-fav-id="${f.id}">
+            <div>
+              ${f.nom ? `<div style="font-weight:700;font-size:14px">${_esc(f.nom)}</div>` : ''}
+              ${f.enseigne && f.enseigne !== 'Ind\u00e9pendant sans enseigne' ? `<div style="font-size:11px;color:var(--primary);font-weight:600">${_esc(f.enseigne)}</div>` : ''}
+              <div style="font-weight:600;font-size:13px">${_esc(f.adresse)}</div>
+              <div style="font-size:12px;color:var(--muted)">${_esc(f.cp)} ${_esc(f.ville)}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" data-remove-fav="${f.id}" title="Retirer"><i class="bi bi-x-lg"></i></button>
+          </div>`).join('');
+
+        body.querySelectorAll('[data-remove-fav]').forEach(btn => {
+          btn.addEventListener('click', e => { e.stopPropagation(); Favorites.remove(parseInt(btn.dataset.removeFav) || btn.dataset.removeFav); renderFavoritesPanel(); updateFavCount(); applyFiltersAndRender(); showToast('Station retir\u00e9e', 'info'); });
+        });
+        body.querySelectorAll('[data-fav-id]').forEach(el => {
+          el.addEventListener('click', async () => {
+            const fav = favs.find(f => String(f.id) === el.dataset.favId);
+            if (fav && fav.lat && fav.lon) {
+              showLoading(true);
+              try {
+                const stations = await CarburantAPI.searchByGeo(fav.lat, fav.lon, 5);
+                currentStations = stations;
+                resultsArea.textContent = `autour de ${fav.ville}`;
+                applyFiltersAndRender();
+                const match = stations.find(s => String(s.id) === String(fav.id));
+                if (match) { CarburantMap.focusStation(match); showDetail(match); }
+              } catch (err) { showError(err.message); } finally { showLoading(false); }
+              bootstrap.Offcanvas.getInstance($('favoritesPanel'))?.hide();
+            }
+          });
+        });
+      }
+
+      function updateFavCount() { const c = Favorites.count(); favCount.textContent = c; favCount.classList.toggle('d-none', c === 0); }
+      updateFavCount();
+
+      /* ---- Dark mode + [3] Dark map tiles ---- */
+      function initTheme() {
+        const saved = localStorage.getItem('carburant_theme');
+        if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        updateThemeIcon();
+        CarburantMap.setDarkTiles(document.documentElement.getAttribute('data-theme') === 'dark');
+      }
+      btnTheme.addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('carburant_theme', 'light'); }
+        else { document.documentElement.setAttribute('data-theme', 'dark'); localStorage.setItem('carburant_theme', 'dark'); }
+        updateThemeIcon();
+        CarburantMap.setDarkTiles(!isDark);
+      });
+      function updateThemeIcon() { const isDark = document.documentElement.getAttribute('data-theme') === 'dark'; btnTheme.innerHTML = isDark ? '<i class="bi bi-sun"></i>' : '<i class="bi bi-moon"></i>'; }
+      initTheme();
+
+      /* ---- Helpers ---- */
+      function _priceClass(price, min, max) { if (price == null || min === max) return ''; const r = (price - min) / (max - min); return r <= 0.33 ? 'price-low' : r <= 0.66 ? 'price-mid' : 'price-high'; }
+      function _esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+      function _fmtDate(d) { if (!d) return ''; const p = d.split('-'); return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d; }
+      function _freshBadge(dateStr) {
+        const f = Utils.priceFreshness(dateStr);
+        if (!f.text) return '';
+        const icons = { fresh: 'circle-fill', recent: 'clock', aging: 'clock-history', old: 'exclamation-circle', stale: 'exclamation-triangle-fill' };
+        return `<span class="freshness-badge freshness-${f.level}"><i class="bi bi-${icons[f.level] || 'clock'}"></i> ${f.text}</span>`;
+      }
+      function _formatHoraires(h) {
+        if (!h) return '';
+        try { const parsed = JSON.parse(h); if (Array.isArray(parsed)) { const jours = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche']; return parsed.map((jour, i) => { if (!jour || !jour.horaire) return `${jours[i]||''} : ferm\u00e9`; const hor = Array.isArray(jour.horaire) ? jour.horaire : [jour.horaire]; return `${jour.nom || jours[i] || ''} : ${hor.map(p => `${p.ouverture||''} - ${p.fermeture||''}`).join(', ')}`; }).join('\n'); } } catch {}
+        return String(h).replace(/\//g, '\n');
+      }
+      function showLoading(show) { loadingOverlay.classList.toggle('d-none', !show); }
+      function showError(msg) { stationList.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-triangle text-danger"></i><div>${_esc(msg)}</div></div>`; }
+      /** Extraire un libelle court depuis un label Nominatim complet
+       *  "63, Route de Paris, Nogent-le-Roi, ..., 28210, France" → "63 Route de Paris, Nogent-le-Roi"
+       */
+      function _shortLabel(label) {
+        if (!label) return '';
+        const parts = label.split(',').map(s => s.trim());
+        // Chercher le code postal (5 chiffres) pour delimiter
+        const cpIdx = parts.findIndex(p => /^\d{5}$/.test(p));
+        // Garder : numero + rue + ville (les 3 premiers segments utiles, avant le CP)
+        const useful = cpIdx > 0 ? parts.slice(0, Math.min(cpIdx, 3)) : parts.slice(0, 3);
+        return useful.join(', ');
+      }
+
+      /* [10] URL sharing */
+      function _updateUrl(params) { const url = new URL(window.location.href.split('?')[0]); Object.entries(params).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); }); history.replaceState(null, '', url.toString()); }
+      function _restoreFromUrl() {
+        const p = new URLSearchParams(window.location.search);
+        if (p.has('fuel')) { currentFuel = p.get('fuel'); renderFuelChips(); }
+        if (p.has('q')) { searchInput.value = p.get('q'); doSearch(); }
+        else if (p.has('from') && p.has('to')) { document.querySelector('[data-tab="route"]')?.click(); $('routeFrom').value = p.get('from'); $('routeTo').value = p.get('to'); setTimeout(() => $('btnCalcRoute')?.click(), 500); }
+        else if (p.has('lat') && p.has('lon')) {
+          const lat = parseFloat(p.get('lat')), lon = parseFloat(p.get('lon'));
+          if (!isNaN(lat) && !isNaN(lon)) { showLoading(true); CarburantAPI.searchByGeo(lat, lon, 5).then(st => { currentStations = st; resultsArea.textContent = 'Lien partag\u00e9'; applyFiltersAndRender(); if (p.has('sid')) { const m = st.find(s => String(s.id) === p.get('sid')); if (m) { CarburantMap.focusStation(m); showDetail(m); } } }).catch(e => showError(e.message)).finally(() => showLoading(false)); }
+        }
+      }
+
+      /* [11] Export PDF/impression */
+      function _addExportButton() {
+        const info = $('resultsInfo');
+        if (!info || info.querySelector('#btnExport')) return;
+        const btn = document.createElement('button');
+        btn.id = 'btnExport'; btn.className = 'btn btn-sm btn-outline-secondary'; btn.title = 'Exporter'; btn.innerHTML = '<i class="bi bi-download"></i>';
+        btn.addEventListener('click', () => {
+          const stations = Utils.sortStations(Utils.filterByFuel(currentStations, currentFuel), currentFuel, currentSort);
+          if (stations.length === 0) { showToast('Rien \u00e0 exporter', 'warning'); return; }
+          const fl = CarburantAPI.getFuelLabel(currentFuel), dt = new Date().toLocaleDateString('fr-FR');
+          let rows = stations.map(s => { const f = s.fuels[currentFuel]; return `<tr><td>${_esc(s.adresse)}</td><td>${_esc(s.cp)} ${_esc(s.ville)}</td><td style="font-weight:700">${f.prix.toFixed(3).replace('.', ',')} \u20ac/L</td><td>${f.maj ? new Date(f.maj).toLocaleDateString('fr-FR') : ''}</td></tr>`; }).join('');
+          const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Export ${fl} ${dt}</title><style>body{font-family:Arial,sans-serif;padding:20px}h1{color:#2f64ff;font-size:20px}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{padding:8px 12px;border:1px solid #ddd;text-align:left;font-size:13px}th{background:#f0f3ff}tr:nth-child(even){background:#f9fafb}</style></head><body><h1>\u26fd ${fl}</h1><p>${stations.length} stations \u2014 ${dt}</p><table><thead><tr><th>Adresse</th><th>Ville</th><th>Prix</th><th>MAJ</th></tr></thead><tbody>${rows}</tbody></table><script>window.print()<\/script></body></html>`;
+          window.open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank');
+          showToast('Export ouvert', 'success');
+        });
+        info.appendChild(btn);
+      }
+      _addExportButton();
+
+      /* ===========================================================
+         ITINERAIRE
+         =========================================================== */
+      const routeFrom       = $('routeFrom');
+      const routeTo         = $('routeTo');
+      const btnCalcRoute    = $('btnCalcRoute');
+      const btnClearRoute   = $('btnClearRoute');
+      const routeProgress   = $('routeProgress');
+      const routeInfoBar    = $('routeInfoBar');
+      const routeCostCalc   = $('routeCostCalc');
+      const routeStationList = $('routeStationList');
+      const acFrom          = $('acFrom');
+      const acTo            = $('acTo');
+      let selectedFrom = null, selectedTo = null;
+      let currentRouteSort = 'route'; // route | price | distance
+      let lastRouteStations = []; // garder les stations pour re-trier
+      RouteManager.init(CarburantMap.getMap());
+
+      /* ---- Config cl\u00e9 ORS ---- */
+      $('btnOrsConfig')?.addEventListener('click', () => {
+        const current = localStorage.getItem('carburant_ors_key') || '';
+        const key = prompt(
+          '\u00c9viter les autoroutes utilise OpenRouteService (gratuit).\n' +
+          'Cr\u00e9ez une cl\u00e9 sur https://openrouteservice.org/dev/#/signup\n\n' +
+          'Collez votre cl\u00e9 API :', current);
+        if (key === null) return; // annul\u00e9
+        if (key.trim()) {
+          localStorage.setItem('carburant_ors_key', key.trim());
+          showToast('Cl\u00e9 API ORS enregistr\u00e9e', 'success');
+        } else {
+          localStorage.removeItem('carburant_ors_key');
+          showToast('Cl\u00e9 API ORS supprim\u00e9e', 'info');
+        }
+      });
+
+      /* ---- Tri itineraire ---- */
+      const routeSortBar = $('routeSortBar');
+      document.querySelectorAll('[data-route-sort]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentRouteSort = btn.dataset.routeSort;
+          document.querySelectorAll('[data-route-sort]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          if (lastRouteStations.length > 0) renderRouteResults(lastRouteStations);
+        });
+      });
+
+      /* [5] Autocomplete avec navigation clavier */
+      function setupAutocomplete(input, dropdown, onSelect) {
+        let debounceTimer, acResults = [], acIndex = -1;
+        input.addEventListener('input', () => {
+          clearTimeout(debounceTimer); acIndex = -1;
+          const q = input.value.trim();
+          if (q.length < 3) { dropdown.classList.add('d-none'); return; }
+          debounceTimer = setTimeout(async () => {
+            try {
+              acResults = await RouteManager.geocode(q);
+              if (acResults.length === 0) { dropdown.classList.add('d-none'); return; }
+              _renderAcItems(dropdown, acResults, onSelect, input);
+              dropdown.classList.remove('d-none'); acIndex = -1;
+            } catch { dropdown.classList.add('d-none'); }
+          }, 400);
+        });
+        input.addEventListener('keydown', e => {
+          if (dropdown.classList.contains('d-none')) return;
+          const items = dropdown.querySelectorAll('.autocomplete-item');
+          if (e.key === 'ArrowDown') { e.preventDefault(); acIndex = Math.min(acIndex + 1, items.length - 1); _hlAc(items, acIndex); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); acIndex = Math.max(acIndex - 1, 0); _hlAc(items, acIndex); }
+          else if (e.key === 'Enter' && acIndex >= 0 && acResults[acIndex]) { e.preventDefault(); input.value = _shortLabel(acResults[acIndex].label); onSelect(acResults[acIndex]); dropdown.classList.add('d-none'); acIndex = -1; }
+          else if (e.key === 'Escape') { dropdown.classList.add('d-none'); acIndex = -1; }
+        });
+        input.addEventListener('blur', () => { setTimeout(() => { dropdown.classList.add('d-none'); acIndex = -1; }, 200); });
+      }
+      function _renderAcItems(dd, results, onSelect, input) {
+        dd.innerHTML = results.map((r, i) => `<div class="autocomplete-item" data-idx="${i}">${_esc(r.label)}</div>`).join('');
+        dd.querySelectorAll('.autocomplete-item').forEach(el => { el.addEventListener('click', () => { input.value = _shortLabel(results[parseInt(el.dataset.idx)].label); onSelect(results[parseInt(el.dataset.idx)]); dd.classList.add('d-none'); }); });
+      }
+      function _hlAc(items, idx) { items.forEach((el, i) => el.classList.toggle('ac-active', i === idx)); if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' }); }
+
+      setupAutocomplete(routeFrom, acFrom, r => { selectedFrom = r; });
+      setupAutocomplete(routeTo, acTo, r => { selectedTo = r; });
+
+      btnCalcRoute.addEventListener('click', async () => {
+        const fromText = routeFrom.value.trim(), toText = routeTo.value.trim();
+        if (!fromText || !toText) { showToast('Entrez d\u00e9part et arriv\u00e9e', 'warning'); return; }
+        const from = selectedFrom || { text: fromText }, to = selectedTo || { text: toText };
+        btnCalcRoute.disabled = true;
+        routeProgress.classList.remove('d-none');
+        routeInfoBar.classList.add('d-none');
+        if (routeCostCalc) routeCostCalc.classList.add('d-none');
+        routeStationList.innerHTML = '';
+        try {
+          const avoidTolls = $('chkAvoidTolls')?.checked || false;
+          const stations = await RouteManager.calculateRoute(CarburantMap.getMap(), from, to, currentFuel, msg => { routeProgress.textContent = msg; }, { avoidTolls });
+          routeProgress.classList.add('d-none');
+          // Mettre a jour les champs avec les noms geocodes
+          const resolved = RouteManager.getLastRouteInfo();
+          if (resolved) {
+            if (resolved.from?.label) routeFrom.value = _shortLabel(resolved.from.label);
+            if (resolved.to?.label) routeTo.value = _shortLabel(resolved.to.label);
+          }
+          renderRouteResults(stations);
+          CarburantAPI.enrichStationNames(stations).then(() => renderRouteResults(stations));
+          showToast(`${stations.filter(s => s.fuels[currentFuel]).length} stations sur le trajet`, 'success');
+          _updateUrl({ from: routeFrom.value, to: routeTo.value, fuel: currentFuel });
+        } catch (err) { routeProgress.classList.add('d-none'); routeStationList.innerHTML = `<div class="empty-state"><i class="bi bi-exclamation-triangle text-danger"></i><div>${_esc(err.message)}</div></div>`; showToast(err.message, 'error'); }
+        finally { btnCalcRoute.disabled = false; }
+      });
+
+      [routeFrom, routeTo].forEach(input => {
+        input.addEventListener('keydown', e => {
+          const dd = input === routeFrom ? acFrom : acTo;
+          if (!dd.classList.contains('d-none') && ['ArrowDown','ArrowUp'].includes(e.key)) return;
+          if (e.key === 'Enter' && dd.classList.contains('d-none')) btnCalcRoute.click();
+        });
+      });
+
+      btnClearRoute.addEventListener('click', () => {
+        RouteManager.clearRoute(CarburantMap.getMap());
+        routeFrom.value = ''; routeTo.value = ''; selectedFrom = null; selectedTo = null;
+        routeInfoBar.classList.add('d-none'); routeProgress.classList.add('d-none');
+        if (routeCostCalc) routeCostCalc.classList.add('d-none');
+        routeSortBar.classList.add('d-none');
+        lastRouteStations = [];
+        lastRouteDistance = 0;
+        routeStationList.innerHTML = `<div class="empty-state"><i class="bi bi-sign-turn-right"></i><div><strong>Planifiez votre trajet</strong></div><div style="margin-top:6px;font-size:13px">Entrez d\u00e9part et arriv\u00e9e pour trouver les stations les moins ch\u00e8res</div></div>`;
+      });
+
+      function renderRouteResults(stations) {
+        lastRouteStations = stations; // garder pour re-tri
+        Favorites.recordPrices(stations); // historique prix
+        const filtered = stations.filter(s => s.fuels[currentFuel]);
+        if (filtered.length === 0) { routeSortBar.classList.add('d-none'); routeStationList.innerHTML = `<div class="empty-state"><i class="bi bi-emoji-frown"></i><div>Aucune station ${CarburantAPI.getFuelLabel(currentFuel)} sur ce trajet</div></div>`; return; }
+
+        // Appliquer le tri
+        const sorted = [...filtered];
+        if (currentRouteSort === 'price') sorted.sort((a, b) => a.fuels[currentFuel].prix - b.fuels[currentFuel].prix);
+        else if (currentRouteSort === 'distance') sorted.sort((a, b) => (a._routeKm || 0) - (b._routeKm || 0));
+        // 'route' = tri par defaut (_routeKm, deja fait par RouteManager)
+
+        const prices = sorted.map(s => s.fuels[currentFuel].prix);
+        const minP = Math.min(...prices), maxP = Math.max(...prices), avgP = prices.reduce((a, b) => a + b, 0) / prices.length;
+        const bestStation = sorted.reduce((best, s) => s.fuels[currentFuel].prix < (best?.fuels[currentFuel]?.prix ?? Infinity) ? s : best, null);
+
+        routeSortBar.classList.remove('d-none');
+        routeSortBar.style.display = 'flex';
+        routeInfoBar.classList.remove('d-none');
+        routeInfoBar.innerHTML = `<span><i class="bi bi-fuel-pump"></i> <strong>${sorted.length}</strong> stations</span><span><i class="bi bi-arrow-down"></i> Min : <strong class="price-low">${minP.toFixed(3).replace('.', ',')} \u20ac</strong></span><span><i class="bi bi-dash"></i> Moy : <strong>${avgP.toFixed(3).replace('.', ',')} \u20ac</strong></span><span><i class="bi bi-arrow-up"></i> Max : <strong class="price-high">${maxP.toFixed(3).replace('.', ',')} \u20ac</strong></span>`;
+
+        // [8] Route cost calculator
+        const lastKm = sorted.reduce((m, s) => Math.max(m, s._routeKm || 0), 0);
+        if (lastKm > 0) lastRouteDistance = lastKm;
+        _renderRouteCostCalc(minP, avgP);
+
+        routeStationList.innerHTML = sorted.map(station => {
+          const fuel = station.fuels[currentFuel], price = fuel.prix;
+          const priceClass = _priceClass(price, minP, maxP);
+          const km = station._routeKm ? Math.round(station._routeKm) : '\u2014';
+          const isBest = bestStation && station.id === bestStation.id && sorted.length > 1;
+          const popLabel = station.pop === 'A' ? 'Autoroute' : station.pop === 'R' ? 'Route' : '';
+          const topSvc = (station.services || []).slice(0, 3);
+          return `<div class="route-station-item" data-id="${station.id}">
+            <div class="route-km">${km}<small>km</small></div>
+            <div>
+              ${station.nom ? `<div style="font-weight:700;font-size:13px">${_esc(station.nom)}</div>` : ''}
+              ${station.enseigne && station.enseigne !== 'Ind\u00e9pendant sans enseigne' ? `<div style="font-size:11px;color:var(--primary);font-weight:600">${_esc(station.enseigne)}</div>` : ''}
+              <div class="station-address">${isBest ? '<span class="best-price-badge me-1"><i class="bi bi-trophy-fill"></i> Meilleur prix</span>' : ''}${_esc(station.adresse)}</div>
+              <div class="station-city">${_esc(station.cp)} ${_esc(station.ville)}${station.departement ? ` (${_esc(station.departement)})` : ''}</div>
+              <div class="station-meta">
+                ${popLabel ? `<span class="station-badge" style="background:var(--sidebar);color:var(--muted)">${popLabel}</span>` : ''}
+                ${station.automate24h ? '<span class="station-badge" style="background:var(--success-bg);color:var(--success-text)">24h/24</span>' : ''}
+                ${topSvc.map(s => `<span class="station-badge" style="background:var(--primary-light);color:var(--primary)">${_esc(s)}</span>`).join('')}
+              </div>
+            </div>
+            <div><div class="station-price-big ${priceClass}">${price.toFixed(3).replace('.', ',')}</div><div class="station-price-sub">\u20ac/L</div>${fuel.maj ? `<div style="margin-top:2px">${_freshBadge(fuel.maj)}</div>` : ''}</div>
+          </div>`;
+        }).join('');
+
+        const unnamedRoute = sorted.filter(s => !s.nom);
+        if (unnamedRoute.length > 0) {
+          const btnMore = document.createElement('div');
+          btnMore.className = 'text-center py-2';
+          btnMore.innerHTML = `<button class="btn btn-sm btn-outline-primary" id="btnLoadMoreRouteNames"><i class="bi bi-arrow-clockwise"></i> Charger les noms (${unnamedRoute.length} restantes)</button>`;
+          routeStationList.appendChild(btnMore);
+          btnMore.querySelector('button').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const btn = e.currentTarget;
+            btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Chargement...';
+            await CarburantAPI.enrichStationNames(stations, stations.length);
+            renderRouteResults(stations);
+          });
+        }
+        routeStationList.querySelectorAll('.route-station-item').forEach(el => {
+          el.addEventListener('click', () => { const s = sorted.find(s => String(s.id) === String(el.dataset.id)); if (s) showDetail(s); });
+        });
+      }
+
+      /* [8] Calculateur cout trajet */
+      function _renderRouteCostCalc(minPrice, avgPrice) {
+        if (!routeCostCalc || lastRouteDistance <= 0) return;
+        routeCostCalc.classList.remove('d-none');
+        const savedConso = localStorage.getItem('carburant_conso') || '7';
+        routeCostCalc.innerHTML = `
+          <h6 class="mb-2"><i class="bi bi-calculator"></i> Co\u00fbt du trajet (${Math.round(lastRouteDistance)} km)</h6>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <label class="form-label mb-0" style="font-size:12px;white-space:nowrap">Conso :</label>
+            <input type="number" class="form-control form-control-sm" id="routeConso" value="${savedConso}" min="3" max="25" step="0.5" style="max-width:70px">
+            <span style="font-size:12px">L/100km</span>
+          </div>
+          <div id="routeCostResult" style="font-size:13px"></div>`;
+        const update = () => {
+          const conso = parseFloat($('routeConso')?.value) || 7;
+          localStorage.setItem('carburant_conso', String(conso));
+          const litres = (lastRouteDistance * conso) / 100;
+          const r = $('routeCostResult');
+          if (r) r.innerHTML = `<div class="d-flex justify-content-between"><span>Litres</span><strong>${litres.toFixed(1)} L</strong></div><div class="d-flex justify-content-between"><span>Au meilleur prix</span><strong class="price-low">${(litres * minPrice).toFixed(2).replace('.', ',')} \u20ac</strong></div><div class="d-flex justify-content-between"><span>Au prix moyen</span><strong>${(litres * avgPrice).toFixed(2).replace('.', ',')} \u20ac</strong></div>`;
+        };
+        update();
+        $('routeConso')?.addEventListener('input', update);
+      }
+
+      /* Mobile : toggle carte/liste */
+      const btnToggleMap = $('btnToggleMap');
+      if (btnToggleMap) {
+        let mapVisible = false;
+        btnToggleMap.addEventListener('click', () => {
+          const listPanel = document.querySelector('.list-panel');
+          const mapPanel = document.querySelector('.map-panel');
+          mapVisible = !mapVisible;
+          if (mapVisible) {
+            listPanel.style.display = 'none';
+            mapPanel.style.display = 'block';
+            mapPanel.style.height = 'calc(100vh - 57px)';
+            btnToggleMap.innerHTML = '<i class="bi bi-list-ul"></i>';
+            btnToggleMap.title = 'Voir la liste';
+            CarburantMap.invalidateSize();
+          } else {
+            listPanel.style.display = '';
+            mapPanel.style.display = '';
+            mapPanel.style.height = '';
+            btnToggleMap.innerHTML = '<i class="bi bi-map"></i>';
+            btnToggleMap.title = 'Voir la carte';
+          }
+        });
+      }
+
+      /* [12] PWA — Service Worker */
+      if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js').catch(() => {}); }
+
+      /* [10] Restaurer etat depuis URL */
+      _restoreFromUrl();
+
+    })();
+  </script>
+</body>
+</html>
