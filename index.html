@@ -1920,7 +1920,33 @@
         }
       }
 
-      /* Capturer la carte via html2canvas avec fitBounds elargi */
+      /* Convertir les transform:translate3d en top/left pour html2canvas */
+      function _freezeLeafletTransforms(container) {
+        const saved = [];
+        container.querySelectorAll('[style*="translate3d"], [style*="translate("]').forEach(el => {
+          const style = el.style;
+          const transform = style.transform || '';
+          const match = transform.match(/translate(?:3d)?\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px/);
+          if (match) {
+            const origLeft = parseFloat(style.left) || 0;
+            const origTop = parseFloat(style.top) || 0;
+            saved.push({ el, transform, left: style.left, top: style.top });
+            style.transform = 'none';
+            style.left = (origLeft + parseFloat(match[1])) + 'px';
+            style.top = (origTop + parseFloat(match[2])) + 'px';
+          }
+        });
+        return saved;
+      }
+      function _restoreLeafletTransforms(saved) {
+        saved.forEach(({ el, transform, left, top }) => {
+          el.style.transform = transform;
+          el.style.left = left;
+          el.style.top = top;
+        });
+      }
+
+      /* Capturer la carte */
       function _captureMap() {
         return new Promise((resolve, reject) => {
           const map = CarburantMap.getMap();
@@ -1929,24 +1955,29 @@
 
           showToast('Capture de la carte...', 'info');
 
-          // Sauvegarder la vue, elargir les bounds pour tout inclure
+          // Sauvegarder la vue, elargir les bounds
           const savedCenter = map.getCenter();
           const savedZoom = map.getZoom();
-          const bounds = map.getBounds().pad(0.3); // 30% de marge
+          const bounds = map.getBounds().pad(0.15);
           map.fitBounds(bounds, { animate: false });
           map.invalidateSize();
 
           // Attendre le chargement des tuiles
           setTimeout(() => {
+            // Convertir les translate3d en top/left pour html2canvas
+            const frozen = _freezeLeafletTransforms(mapEl);
+
             html2canvas(mapEl, {
               scale: 1.5,
               useCORS: true,
               allowTaint: true,
               backgroundColor: '#fff',
             }).then(canvas => {
+              _restoreLeafletTransforms(frozen);
               map.setView(savedCenter, savedZoom, { animate: false });
               resolve(canvas.toDataURL('image/jpeg', 0.85));
             }).catch(() => {
+              _restoreLeafletTransforms(frozen);
               map.setView(savedCenter, savedZoom, { animate: false });
               reject();
             });
