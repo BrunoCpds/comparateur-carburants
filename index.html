@@ -1921,27 +1921,122 @@
         }
       }
 
-      /* Capturer la carte via dom-to-image-more (gere les CSS transforms) */
+      /* Capturer la carte : rendu canvas propre (tuiles CORS + trace GPS) */
       function _captureMap() {
         return new Promise((resolve, reject) => {
           const map = CarburantMap.getMap();
-          const mapContainer = map ? map.getContainer() : null;
-          if (!map || !mapContainer || typeof domtoimage === 'undefined') { reject(); return; }
-
+          if (!map) { reject(); return; }
           showToast('Capture de la carte...', 'info');
 
-          domtoimage.toJpeg(mapContainer, {
-            quality: 0.85,
-            bgcolor: '#fff',
-            width: mapContainer.offsetWidth,
-            height: mapContainer.offsetHeight,
-            style: { margin: '0', padding: '0' },
-          }).then(dataUrl => {
-            resolve(dataUrl);
-          }).catch(err => {
-            console.error('dom-to-image error:', err);
-            reject(err);
-          });
+          const size = map.getSize();
+          const W = size.x, H = size.y;
+          const canvas = document.createElement('canvas');
+          canvas.width = W * 2; canvas.height = H * 2;
+          const ctx = canvas.getContext('2d');
+          ctx.scale(2, 2);
+          ctx.fillStyle = '#f2efe9'; ctx.fillRect(0, 0, W, H);
+
+          const zoom = map.getZoom();
+          const bounds = map.getBounds();
+
+          // Calculer les tuiles necessaires
+          function latLngToTile(lat, lng, z) {
+            const x = Math.floor((lng + 180) / 360 * Math.pow(2, z));
+            const y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+            return { x, y };
+          }
+          function tileToLatLng(x, y, z) {
+            const n = Math.PI - 2 * Math.PI * y / Math.pow(2, z);
+            return { lat: 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))), lng: x / Math.pow(2, z) * 360 - 180 };
+          }
+          function latLngToPixel(lat, lng) {
+            const pt = map.latLngToContainerPoint([lat, lng]);
+            return { x: pt.x, y: pt.y };
+          }
+
+          const tileMin = latLngToTile(bounds.getNorth(), bounds.getWest(), zoom);
+          const tileMax = latLngToTile(bounds.getSouth(), bounds.getEast(), zoom);
+          const tileSize = 256;
+          const servers = ['a', 'b', 'c'];
+
+          // Charger les tuiles CartoDB Voyager (supportent CORS)
+          const tilePromises = [];
+          for (let tx = tileMin.x; tx <= tileMax.x; tx++) {
+            for (let ty = tileMin.y; ty <= tileMax.y; ty++) {
+              const s = servers[(tx + ty) % 3];
+              const url = `https://${s}.basemaps.cartocdn.com/rastertiles/voyager/${zoom}/${tx}/${ty}.png`;
+              const p = new Promise(res => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => res({ img, tx, ty });
+                img.onerror = () => res(null);
+                img.src = url;
+              });
+              tilePromises.push(p);
+            }
+          }
+
+          Promise.all(tilePromises).then(tiles => {
+            // Dessiner chaque tuile a sa position pixel
+            tiles.forEach(t => {
+              if (!t) return;
+              const nw = tileToLatLng(t.tx, t.ty, zoom);
+              const px = latLngToPixel(nw.lat, nw.lng);
+              ctx.drawImage(t.img, px.x, px.y, tileSize, tileSize);
+            });
+
+            // Dessiner le trace (polyline bleue)
+            map.eachLayer(layer => {
+              if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
+                const latlngs = layer.getLatLngs();
+                if (latlngs.length > 1) {
+                  ctx.beginPath();
+                  ctx.strokeStyle = layer.options.color || '#2f64ff';
+                  ctx.lineWidth = layer.options.weight || 5;
+                  ctx.lineJoin = 'round';
+                  ctx.lineCap = 'round';
+                  ctx.globalAlpha = layer.options.opacity || 0.8;
+                  latlngs.forEach((ll, i) => {
+                    const p = latLngToPixel(ll.lat, ll.lng);
+                    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+                  });
+                  ctx.stroke();
+                  ctx.globalAlpha = 1;
+                }
+              }
+            });
+
+            // Dessiner les marqueurs de stations (points colores avec prix)
+            map.eachLayer(layer => {
+              if (layer instanceof L.Marker && layer._icon) {
+                const ll = layer.getLatLng();
+                const p = latLngToPixel(ll.lat, ll.lng);
+                // Recuperer la couleur depuis l'icone
+                const iconHtml = layer._icon.innerHTML || '';
+                const bgMatch = iconHtml.match(/background:\s*(#[0-9a-fA-F]+)/);
+                const priceMatch = iconHtml.match(/marker-price[^>]*>([^<]+)/);
+                const color = bgMatch ? bgMatch[1] : '#3b82f6';
+                const price = priceMatch ? priceMatch[1].trim() : '';
+
+                if (price) {
+                  // Dessiner un badge prix
+                  ctx.fillStyle = color;
+                  const tw = ctx.measureText(price).width;
+                  const bw = tw + 12, bh = 20, br = 4;
+                  const bx = p.x - bw / 2, by = p.y - bh;
+                  ctx.beginPath();
+                  ctx.roundRect(bx, by, bw, br * 2 + bh - 8, br);
+                  ctx.fill();
+                  ctx.fillStyle = '#fff';
+                  ctx.font = 'bold 11px Arial';
+                  ctx.textAlign = 'center';
+                  ctx.fillText(price, p.x, by + 14);
+                }
+              }
+            });
+
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          }).catch(() => reject());
         });
       }
 
