@@ -1662,20 +1662,22 @@
       }
 
       function _exportAsJpeg(htmlContent, filename) {
-        const iframe = document.createElement('iframe');
-        iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:900px;height:600px;border:none';
-        document.body.appendChild(iframe);
-        iframe.contentDocument.open(); iframe.contentDocument.write(htmlContent); iframe.contentDocument.close();
+        const container = document.createElement('div');
+        container.style.cssText = 'position:fixed;left:-9999px;top:0;width:860px;background:#fff;z-index:-1;padding:20px';
+        container.innerHTML = htmlContent.replace(/<!DOCTYPE[^>]*>|<\/?html[^>]*>|<\/?head[^>]*>|<meta[^>]*>|<title[^>]*>[^<]*<\/title>|<\/?body[^>]*>/gi, '');
+        const styleMatch = htmlContent.match(/<style>([\s\S]*?)<\/style>/);
+        if (styleMatch) { const s = document.createElement('style'); s.textContent = styleMatch[1]; container.prepend(s); }
+        document.body.appendChild(container);
         setTimeout(() => {
-          html2canvas(iframe.contentDocument.body, { scale: 2, backgroundColor: '#fff', width: 860, windowWidth: 900 }).then(canvas => {
+          html2canvas(container, { scale: 2, backgroundColor: '#fff', width: 860 }).then(canvas => {
             const link = document.createElement('a');
             link.download = filename || 'export.jpg';
             link.href = canvas.toDataURL('image/jpeg', 0.92);
             link.click();
-            document.body.removeChild(iframe);
+            document.body.removeChild(container);
             showToast('JPEG t\u00e9l\u00e9charg\u00e9', 'success');
-          }).catch(() => { document.body.removeChild(iframe); showToast('Erreur export JPEG', 'error'); });
-        }, 500);
+          }).catch(err => { console.error('JPEG error:', err); document.body.removeChild(container); showToast('Erreur export JPEG', 'error'); });
+        }, 300);
       }
 
       function _addExportButton() {
@@ -1908,7 +1910,7 @@
 
         if (format === 'jpeg') {
           // Capturer la carte d'abord, puis generer le JPEG complet
-          _captureMapAndExportJpeg(html, `roadbook-${dt.replace(/\\//g, '-')}.jpg`);
+          _captureMapAndExportJpeg(html, `roadbook-${dt.replace(/\//g, '-')}.jpg`);
         } else {
           _captureMapAndExportPdf(html);
         }
@@ -1934,20 +1936,28 @@
       function _captureMapAndExportJpeg(htmlContent, filename) {
         const mapEl = document.querySelector('.map-panel');
         const doExport = (finalHtml) => {
-          const iframe = document.createElement('iframe');
-          iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1000px;height:2000px;border:none';
-          document.body.appendChild(iframe);
-          iframe.contentDocument.open(); iframe.contentDocument.write(finalHtml); iframe.contentDocument.close();
+          // Creer un div hors-ecran dans le document principal (pas un iframe)
+          const container = document.createElement('div');
+          container.style.cssText = 'position:fixed;left:-9999px;top:0;width:960px;background:#fff;z-index:-1;padding:20px';
+          container.innerHTML = finalHtml.replace(/<!DOCTYPE[^>]*>|<\/?html[^>]*>|<\/?head[^>]*>|<meta[^>]*>|<title[^>]*>[^<]*<\/title>|<\/?body[^>]*>/gi, '');
+          // Injecter les styles inline
+          const styleMatch = finalHtml.match(/<style>([\s\S]*?)<\/style>/);
+          if (styleMatch) {
+            const styleEl = document.createElement('style');
+            styleEl.textContent = styleMatch[1];
+            container.prepend(styleEl);
+          }
+          document.body.appendChild(container);
           setTimeout(() => {
-            html2canvas(iframe.contentDocument.body, { scale: 2, backgroundColor: '#fff', width: 960, windowWidth: 1000, height: iframe.contentDocument.body.scrollHeight }).then(canvas => {
+            html2canvas(container, { scale: 2, backgroundColor: '#fff', width: 960 }).then(canvas => {
               const link = document.createElement('a');
               link.download = filename;
               link.href = canvas.toDataURL('image/jpeg', 0.92);
               link.click();
-              document.body.removeChild(iframe);
+              document.body.removeChild(container);
               showToast('Roadbook JPEG t\u00e9l\u00e9charg\u00e9', 'success');
-            }).catch(() => { document.body.removeChild(iframe); showToast('Erreur export JPEG', 'error'); });
-          }, 800);
+            }).catch(err => { console.error('JPEG export error:', err); document.body.removeChild(container); showToast('Erreur export JPEG', 'error'); });
+          }, 300);
         };
 
         if (mapEl && typeof html2canvas !== 'undefined') {
