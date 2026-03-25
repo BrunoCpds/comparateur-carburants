@@ -863,6 +863,9 @@
           <button class="btn btn-sm btn-outline-primary" id="btnGeolocate" title="Ma position">
             <i class="bi bi-crosshair"></i>
           </button>
+          <button class="btn btn-sm btn-outline-secondary d-none" id="btnRefresh" title="Rafraîchir les prix">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
           <!-- Search history dropdown -->
           <div class="search-history d-none" id="searchHistory"></div>
         </div>
@@ -1058,6 +1061,7 @@
       const $ = id => document.getElementById(id);
       const searchInput    = $('searchInput');
       const btnSearch      = $('btnSearch');
+      const btnRefresh     = $('btnRefresh');
       const btnGeolocate   = $('btnGeolocate');
       const fuelChips      = $('fuelChips');
       const sortSelect     = $('sortSelect');
@@ -1214,11 +1218,13 @@
           applyFiltersAndRender();
           showToast(`${stations.length} station${stations.length > 1 ? 's' : ''} trouv\u00e9e${stations.length > 1 ? 's' : ''}`, 'success');
           _updateUrl({ q, fuel: currentFuel });
+          btnRefresh.classList.remove('d-none');
         } catch (err) { showError(`Erreur : ${err.message}`); showToast(err.message, 'error'); }
         finally { showLoading(false); }
       }
 
       btnSearch.addEventListener('click', doSearch);
+      btnRefresh.addEventListener('click', doSearch);
       searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 
       /* ---- Geolocalisation ---- */
@@ -1243,6 +1249,7 @@
           CarburantAPI.enrichStationNames(stations).then(() => applyFiltersAndRender());
           applyFiltersAndRender();
           showToast(`${stations.length} stations dans un rayon de ${currentRadius} km`, 'success');
+          btnRefresh.classList.remove('d-none');
         } catch (err) { showError(`G\u00e9olocalisation : ${err.message}`); showToast(err.message, 'error'); }
         finally { showLoading(false); }
       });
