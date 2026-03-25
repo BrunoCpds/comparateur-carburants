@@ -1056,6 +1056,7 @@
       let filter24h = false;
       let lastRouteDistance = 0;
       let lastTollData = null; // données péages TollGuru
+      let lastSearchAction = null; // 'text' | 'geo' — pour le bouton refresh
 
       /* ---- DOM ---- */
       const $ = id => document.getElementById(id);
@@ -1218,13 +1219,28 @@
           applyFiltersAndRender();
           showToast(`${stations.length} station${stations.length > 1 ? 's' : ''} trouv\u00e9e${stations.length > 1 ? 's' : ''}`, 'success');
           _updateUrl({ q, fuel: currentFuel });
+          lastSearchAction = 'text';
           btnRefresh.classList.remove('d-none');
         } catch (err) { showError(`Erreur : ${err.message}`); showToast(err.message, 'error'); }
         finally { showLoading(false); }
       }
 
       btnSearch.addEventListener('click', doSearch);
-      btnRefresh.addEventListener('click', doSearch);
+      btnRefresh.addEventListener('click', async () => {
+        if (lastSearchAction === 'geo' && userPos) {
+          showLoading(true);
+          try {
+            const stations = await CarburantAPI.searchByGeo(userPos.lat, userPos.lon, currentRadius);
+            currentStations = stations;
+            CarburantAPI.enrichStationNames(stations).then(() => applyFiltersAndRender());
+            applyFiltersAndRender();
+            showToast(`Prix rafraîchis — ${stations.length} stations`, 'success');
+          } catch (err) { showToast(err.message, 'error'); }
+          finally { showLoading(false); }
+        } else {
+          doSearch();
+        }
+      });
       searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 
       /* ---- Geolocalisation ---- */
@@ -1249,6 +1265,7 @@
           CarburantAPI.enrichStationNames(stations).then(() => applyFiltersAndRender());
           applyFiltersAndRender();
           showToast(`${stations.length} stations dans un rayon de ${currentRadius} km`, 'success');
+          lastSearchAction = 'geo';
           btnRefresh.classList.remove('d-none');
         } catch (err) { showError(`G\u00e9olocalisation : ${err.message}`); showToast(err.message, 'error'); }
         finally { showLoading(false); }
