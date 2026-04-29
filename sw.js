@@ -3,7 +3,7 @@
    Cache les ressources statiques, network-first pour l'API
    ============================================================ */
 
-const CACHE_NAME = 'carburant-v24';
+const CACHE_NAME = 'carburant-v25';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   './js/route.js',
   './js/utils.js',
   './js/favorites.js',
+  './js/carlocation.js',
   './manifest.json',
   './favicon.svg',
 ];

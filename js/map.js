@@ -11,6 +11,8 @@ const CarburantMap = (() => {
   let _markers = [];
   let _markerGroup = null;
   let _userMarker = null;
+  let _carMarker = null;
+  let _walkingLine = null;
   let _selectedFuel = 'e10';
   let _onStationClick = null;
   let _tileLayer = null;
@@ -124,6 +126,56 @@ const CarburantMap = (() => {
     _userMarker.bindPopup('<strong>Votre position</strong>');
   }
 
+  /* ---- Marqueur voiture ---- */
+  function showCarMarker(lat, lon) {
+    if (_carMarker) _map.removeLayer(_carMarker);
+    _carMarker = L.marker([lat, lon], {
+      icon: L.divIcon({
+        className: 'car-marker',
+        html: '<div class="car-marker-pin"><span>🚗</span></div>',
+        iconSize: [40, 40],
+        iconAnchor: [20, 36],
+      }),
+    }).addTo(_map);
+    _carMarker.bindPopup('<strong>Ma voiture</strong>');
+  }
+
+  function clearCarMarker() {
+    if (_carMarker) { _map.removeLayer(_carMarker); _carMarker = null; }
+    if (_walkingLine) { _map.removeLayer(_walkingLine); _walkingLine = null; }
+  }
+
+  /* ---- Ligne piéton (pointillés) entre deux points ---- */
+  function drawWalkingLine(userLatLon, carLatLon) {
+    if (_walkingLine) _map.removeLayer(_walkingLine);
+    _walkingLine = L.polyline([userLatLon, carLatLon], {
+      color: '#dc2626',
+      weight: 3,
+      opacity: 0.85,
+      dashArray: '6,8',
+    }).addTo(_map);
+  }
+
+  /* ---- Cadrer sur voiture + utilisateur ---- */
+  function fitToCarAndUser() {
+    if (!_map) return;
+    const layers = [];
+    if (_carMarker) layers.push(_carMarker);
+    if (_userMarker) layers.push(_userMarker);
+    if (layers.length === 0) return;
+    if (layers.length === 1) {
+      const ll = layers[0].getLatLng();
+      _map.setView([ll.lat, ll.lng], 17);
+      return;
+    }
+    _map.fitBounds(L.featureGroup(layers).getBounds(), { padding: [60, 60], maxZoom: 18 });
+  }
+
+  /* ---- Centrer sur des coordonnées libres ---- */
+  function focusLatLon(lat, lon, zoom = 16) {
+    if (_map) _map.setView([lat, lon], zoom);
+  }
+
   /* ---- Centrer sur une station ---- */
   function focusStation(station) {
     if (!station.lat || !station.lon) return;
@@ -172,5 +224,9 @@ const CarburantMap = (() => {
 
   function getMap() { return _map; }
 
-  return { init, showStations, showUserPosition, focusStation, invalidateSize, getMap, setDarkTiles };
+  return {
+    init, showStations, showUserPosition, focusStation, focusLatLon,
+    showCarMarker, clearCarMarker, drawWalkingLine, fitToCarAndUser,
+    invalidateSize, getMap, setDarkTiles,
+  };
 })();

@@ -400,6 +400,110 @@
     }
 
     /* ================================================
+       Localiser ma voiture
+       ================================================ */
+    .car-tab-content { padding: 16px; }
+    .car-tiles {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .car-tile {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 22px 18px;
+      background: var(--panel);
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform .15s, border-color .15s, background .15s;
+      text-align: left;
+      width: 100%;
+      color: var(--text);
+    }
+    .car-tile:hover { transform: translateY(-2px); border-color: var(--primary); background: var(--primary-light); }
+    .car-tile:active { transform: scale(0.98); }
+    .car-tile-icon {
+      font-size: 38px;
+      line-height: 1;
+      flex-shrink: 0;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary-light);
+      border-radius: 14px;
+      color: var(--primary);
+    }
+    .car-tile-text { flex: 1; min-width: 0; }
+    .car-tile-label { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .car-tile-hint { font-size: 12px; color: var(--muted); }
+    .car-tile.is-loading { opacity: .55; pointer-events: none; }
+    .car-tile.is-loading .car-tile-icon { animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+    .car-position-card {
+      padding: 14px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+    .car-position-empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 24px 12px;
+    }
+    .car-photo {
+      display: block;
+      width: 100%;
+      max-height: 220px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+    .car-position-meta { margin-bottom: 12px; }
+    .car-position-title { font-weight: 700; font-size: 14px; line-height: 1.35; }
+    .car-position-sub {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .car-position-distance {
+      margin-top: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .car-position-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Marqueur voiture sur la carte */
+    .car-marker-pin {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      background: #fff;
+      border: 3px solid #dc2626;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 4px 10px rgba(220,38,38,0.45);
+    }
+    .car-marker-pin > * { transform: rotate(45deg); }
+    [data-theme="dark"] .car-marker-pin { background: #1c1f2e; }
+
+    /* ================================================
        Tabs
        ================================================ */
     .view-tabs {
@@ -893,11 +997,12 @@
         </div>
       </div>
 
-      <!-- Onglets liste / stats / itinéraire -->
+      <!-- Onglets liste / stats / itinéraire / voiture -->
       <div class="view-tabs">
         <div class="view-tab active" data-tab="list"><i class="bi bi-list-ul"></i> Stations</div>
         <div class="view-tab" data-tab="stats"><i class="bi bi-bar-chart"></i> Stats</div>
         <div class="view-tab" data-tab="route"><i class="bi bi-sign-turn-right"></i> Itinéraire</div>
+        <div class="view-tab" data-tab="car"><i class="bi bi-car-front-fill"></i> Ma voiture</div>
       </div>
 
       <!-- Info résultats -->
@@ -977,6 +1082,30 @@
           </div>
         </div>
       </div>
+
+      <!-- Contenu : Ma voiture -->
+      <div class="tab-content" id="tabCar">
+        <div class="car-tab-content">
+          <div class="car-tiles">
+            <button type="button" class="car-tile" id="btnSaveCarPosition">
+              <div class="car-tile-icon"><i class="bi bi-geo-alt-fill"></i></div>
+              <div class="car-tile-text">
+                <div class="car-tile-label">Enregistrer ma position</div>
+                <div class="car-tile-hint">Mémorise l'emplacement actuel de la voiture</div>
+              </div>
+            </button>
+            <button type="button" class="car-tile" id="btnLocateCar">
+              <div class="car-tile-icon"><i class="bi bi-search"></i></div>
+              <div class="car-tile-text">
+                <div class="car-tile-label">Localiser ma voiture</div>
+                <div class="car-tile-hint">Affiche la position et propose un itinéraire piéton</div>
+              </div>
+            </button>
+          </div>
+          <div class="car-position-card" id="carPositionCard"></div>
+          <input type="file" accept="image/*" capture="environment" hidden id="carPhotoInput">
+        </div>
+      </div>
     </div>
 
     <!-- ---- Panneau carte ---- -->
@@ -1040,6 +1169,7 @@
   <script src="js/favorites.js"></script>
   <script src="js/map.js"></script>
   <script src="js/route.js"></script>
+  <script src="js/carlocation.js"></script>
   <script>
     /* ============================================================
        app.js — Controleur principal (v2 — 15 ameliorations)
@@ -1190,7 +1320,7 @@
       renderFuelChips();
 
       /* ---- Tabs ---- */
-      const tabMap = { list: 'tabList', stats: 'tabStats', route: 'tabRoute' };
+      const tabMap = { list: 'tabList', stats: 'tabStats', route: 'tabRoute', car: 'tabCar' };
       document.querySelectorAll('.view-tab').forEach(tab => {
         tab.addEventListener('click', () => {
           document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
@@ -1198,9 +1328,12 @@
           tab.classList.add('active');
           const target = tabMap[tab.dataset.tab];
           if (target) $(target).classList.add('active');
-          if (tab.dataset.tab === 'route') CarburantMap.invalidateSize();
+          if (tab.dataset.tab === 'route' || tab.dataset.tab === 'car') CarburantMap.invalidateSize();
         });
       });
+
+      /* ---- Init Localiser ma voiture ---- */
+      if (typeof CarLocation !== 'undefined') CarLocation.init();
 
       /* ---- Recherche ---- */
       async function doSearch() {
