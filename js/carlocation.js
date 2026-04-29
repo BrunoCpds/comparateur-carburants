@@ -222,12 +222,9 @@ const CarLocation = (() => {
         }
       }
 
-      // Sur mobile : basculer vers la carte si bouton dispo et masqué (carte cachée)
-      const toggleBtn = document.getElementById('btnToggleMap');
-      if (toggleBtn && getComputedStyle(toggleBtn).display !== 'none') {
-        const mapPanel = document.querySelector('.map-panel');
-        if (mapPanel && mapPanel.style.display !== 'block') toggleBtn.click();
-      }
+      // Faire défiler la carte de position dans la vue (où sont les boutons Apple Plans / Google Maps)
+      document.getElementById('carPositionCard')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      _toast('Tapez Apple Plans ou Google Maps pour l\'itinéraire', 'info');
     } finally {
       if (tile) tile.classList.remove('is-loading');
     }
@@ -259,14 +256,12 @@ const CarLocation = (() => {
     _toast('Position effacée', 'info');
   }
 
-  function openAppleMaps(lat, lon) {
-    const url = `https://maps.apple.com/?daddr=${lat},${lon}&dirflg=w`;
-    window.open(url, '_blank');
+  // maps:// scheme géré directement par iOS/macOS (plus fiable en PWA standalone que l'universal link)
+  function _appleMapsUrl(lat, lon) {
+    return `maps://?daddr=${lat},${lon}&dirflg=w`;
   }
-
-  function openGoogleMaps(lat, lon) {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
-    window.open(url, '_blank');
+  function _googleMapsUrl(lat, lon) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
   }
 
   /* ---- Rendu ---- */
@@ -303,12 +298,12 @@ const CarLocation = (() => {
         <div id="carDistance" class="car-position-distance d-none"></div>
       </div>
       <div class="car-position-actions">
-        <button class="btn btn-primary btn-sm flex-fill" id="btnCarOpenApple">
+        <a class="btn btn-primary btn-sm flex-fill" href="${_appleMapsUrl(data.lat, data.lon)}">
           <i class="bi bi-apple"></i> Apple Plans
-        </button>
-        <button class="btn btn-outline-primary btn-sm flex-fill" id="btnCarOpenGoogle">
+        </a>
+        <a class="btn btn-outline-primary btn-sm flex-fill" href="${_googleMapsUrl(data.lat, data.lon)}" target="_blank" rel="noopener">
           <i class="bi bi-google"></i> Google Maps
-        </button>
+        </a>
       </div>
       <div class="car-position-actions mt-2">
         <button class="btn btn-outline-secondary btn-sm flex-fill" id="btnCarAddPhoto">
@@ -319,8 +314,6 @@ const CarLocation = (() => {
         </button>
       </div>`;
 
-    document.getElementById('btnCarOpenApple')?.addEventListener('click', () => openAppleMaps(data.lat, data.lon));
-    document.getElementById('btnCarOpenGoogle')?.addEventListener('click', () => openGoogleMaps(data.lat, data.lon));
     document.getElementById('btnCarAddPhoto')?.addEventListener('click', () => document.getElementById('carPhotoInput')?.click());
     document.getElementById('btnCarClear')?.addEventListener('click', handleClear);
   }
